@@ -1,0 +1,74 @@
+@*
+    Type what each real account shows right now. Blank means "skip". Matches are recorded as
+    checks; differences get a labeled correction so Amiki agrees with reality, and both land in
+    the history.
+*@
+@inject FinanceStore Store
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="muted mb-3">
+            Open your bank or wallet app and type what it shows. Leave an account blank to skip it.
+        </MudText>
+        <div class="check-list">
+            @foreach (var account in Accounts)
+            {
+                var entered = _actual.GetValueOrDefault(account.Name);
+                var expected = Store.Balance(account.Name);
+                <div class="check-row">
+                    <div class="check-name">
+                        <div class="task-title">@account.Name</div>
+                        <div class="muted check-sub">Amiki says @Signed(expected)</div>
+                    </div>
+                    <MudNumericField T="decimal?" Value="entered" ValueChanged="v => _actual[account.Name] = v" Immediate="true"
+                                     Placeholder="Real balance" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true"
+                                     aria-label="@($"Real balance of {account.Name}")" Class="check-input" />
+                    <span class="check-result">
+                        @if (entered is { } actual)
+                        {
+                            @if (actual == expected)
+                            {
+                                <span class="check-ok"><MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> matches</span>
+                            }
+                            else
+                            {
+                                <span class="check-off"><MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" /> off by @Money.Signed(actual - expected)</span>
+                            }
+                        }
+                    </span>
+                </div>
+            }
+        </div>
+        @if (Entered.Any(e => e.Actual != Store.Balance(e.Account)))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                Differences are fixed with a "Balance fix" entry, kept out of your spending and income totals and shown in History.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="!Entered.Any()" OnClick="Save">Record check</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public string? OnlyAccount { get; set; }
+
+    private readonly Dictionary<string, decimal?> _actual = [];
+
+    private IEnumerable<Account> Accounts => Store.Accounts.Where(a => OnlyAccount is null || a.Name == OnlyAccount);
+
+    private IEnumerable<(string Account, decimal Actual)> Entered =>
+        _actual.Where(kv => kv.Value is not null).Select(kv => (kv.Key, kv.Value!.Value));
+
+    private void Save()
+    {
+        var checks = Entered.ToList().Select(e => Store.RecordCheck(e.Account, e.Actual)).ToList();
+        Dialog.Close(DialogResult.Ok(checks));
+    }
+
+    private static string Signed(decimal v) => (v < 0 ? "−" : "") + Money.Format(v);
+}

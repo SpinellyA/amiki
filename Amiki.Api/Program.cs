@@ -52,10 +52,24 @@ if (auth.Enabled) api.RequireAuthorization(OwnerAuth.Policy);
 api.MapEntity("inbox", db => db.Inbox);
 api.MapEntity("tasks", db => db.Tasks);
 api.MapEntity("ideas", db => db.Ideas);
-api.MapEntity("transactions", db => db.Transactions);
 api.MapEntity("plans", db => db.Plans, Plan.CheckReplace);
+
+// Money: every change is audited, and account names must be real accounts.
+api.MapEntity("transactions", db => db.Transactions,
+    checkAsync: (db, tx, ct) => MoneyRules.AccountExists(db, tx.Account, ct),
+    describe: tx => tx.Describe());
+api.MapEntity("transfers", db => db.Transfers,
+    checkAsync: async (db, t, ct) => await MoneyRules.AccountExists(db, t.From, ct) ?? await MoneyRules.AccountExists(db, t.To, ct),
+    describe: t => t.Describe());
+api.MapEntity("balance-checks", db => db.BalanceChecks,
+    checkReplace: MoneyRules.ChecksAreFinal,
+    checkAsync: MoneyRules.CheckIsBacked,
+    describe: c => c.Describe());
 api.MapGet("/accounts", async (AmikiDb db, CancellationToken ct) =>
     Results.Ok(await db.Accounts.AsNoTracking().OrderBy(a => a.Name).ToListAsync(ct)));
+// Read-only on purpose: the log is only ever written alongside the change it records.
+api.MapGet("/audit", async (AmikiDb db, CancellationToken ct) =>
+    Results.Ok(await db.AuditLog.AsNoTracking().OrderByDescending(e => e.Id).Take(500).ToListAsync(ct)));
 
 // Unknown /api paths are real 404s; everything else is a client-side route.
 app.MapFallback("/api/{**rest}", () => Results.NotFound());

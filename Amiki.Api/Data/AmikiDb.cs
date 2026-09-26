@@ -20,6 +20,9 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     public DbSet<Idea> Ideas => Set<Idea>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Transfer> Transfers => Set<Transfer>();
+    public DbSet<BalanceCheck> BalanceChecks => Set<BalanceCheck>();
+    public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
     public DbSet<Plan> Plans => Set<Plan>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
@@ -54,11 +57,35 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             tx.HasIndex(t => t.Date);
         });
 
+        // Start at zero: the first balance check on each account sets its real amount (as a
+        // labeled correction), instead of made-up opening balances skewing every total.
         model.Entity<Account>(account =>
         {
             account.ToTable("accounts");
             account.HasKey(a => a.Name);
-            account.HasData(new Account("Cash", 800), new Account("GCash", 1200), new Account("Maya", 0), new Account("BPI", 15000));
+            account.HasData(new Account("Cash", 0), new Account("GCash", 0), new Account("Maya", 0), new Account("Landbank", 0));
+        });
+
+        model.Entity<Transfer>(transfer =>
+        {
+            transfer.ToTable("transfers");
+            transfer.HasIndex(t => t.Date);
+        });
+
+        model.Entity<BalanceCheck>(check =>
+        {
+            check.ToTable("balance_checks");
+            check.HasIndex(c => new { c.Account, c.CheckedAt });
+        });
+
+        model.Entity<AuditEntry>(entry =>
+        {
+            entry.ToTable("audit_log");
+            entry.Property(e => e.Id).UseIdentityAlwaysColumn();
+            entry.Property(e => e.Before).HasColumnType("jsonb");
+            entry.Property(e => e.After).HasColumnType("jsonb");
+            entry.HasIndex(e => e.At);
+            entry.HasIndex(e => e.EntityId);
         });
 
         // A plan is saved and loaded as one unit, so its items live in a jsonb column on the

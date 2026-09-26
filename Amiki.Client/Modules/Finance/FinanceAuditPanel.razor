@@ -1,0 +1,48 @@
+@* The self-audit's findings, re-run on every change. Quiet (one line) when everything checks out. *@
+@implements IDisposable
+@inject FinanceStore Store
+@inject FinanceActions Actions
+
+@{ var findings = FinanceAudit.Run(Store); }
+@if (findings.Count == 0)
+{
+    <div class="audit-ok" role="status">
+        <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" />
+        <span>Books check out: no negative balances, nothing looks duplicated, and every account was checked against its real balance in the last two weeks.</span>
+    </div>
+}
+else
+{
+    <MudPaper Outlined="true" Class="audit-panel" role="region" aria-label="Self-check">
+        <div class="widget-head">
+            <MudIcon Icon="@Icons.Material.Outlined.Policy" Size="Size.Small" />
+            <span>Self-check</span>
+            <span class="muted">@findings.Count to look at</span>
+        </div>
+        @foreach (var finding in findings.Take(_showAll ? int.MaxValue : 4))
+        {
+            <div class="audit-finding @(finding.Level == FindingLevel.Warning ? "warn" : "")">
+                <MudIcon Icon="@(finding.Level == FindingLevel.Warning ? Icons.Material.Filled.Error : Icons.Material.Outlined.Info)" Size="Size.Small" />
+                <span class="audit-text">@finding.Message</span>
+                @if (finding.Account is { } account)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Actions.CheckBalancesAsync(account)">Check @account</MudButton>
+                }
+            </div>
+        }
+        @if (findings.Count > 4)
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Text" Class="ml-2 mb-1" OnClick="() => _showAll = !_showAll">
+                @(_showAll ? "Show fewer" : $"Show all {findings.Count}")
+            </MudButton>
+        }
+    </MudPaper>
+}
+
+@code {
+    private bool _showAll;
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

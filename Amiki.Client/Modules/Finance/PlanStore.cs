@@ -20,6 +20,8 @@ public sealed class PlanStore(Api api, SyncQueue sync, FinanceStore finance) : I
 
     public IReadOnlyList<Plan> Archived => _plans.Where(p => p.IsArchived).OrderByDescending(p => p.ArchivedAt).ToList();
 
+    public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _plans)];
+
     public Plan? Get(Guid id) => _plans.FirstOrDefault(p => p.Id == id);
 
     public async Task LoadAsync(CancellationToken ct)

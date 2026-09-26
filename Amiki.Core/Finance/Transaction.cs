@@ -26,6 +26,10 @@ public sealed class Transaction : IEntity
         : string.IsNullOrWhiteSpace(Account) ? "Pick an account."
         : Note.Length > 500 ? "Note is too long (500 characters max)."
         : null;
+
+    public string Describe() =>
+        $"{(Kind == TxKind.Income ? "Received" : "Spent")} {Money.Format(Amount)} · {Category} · {Account}"
+        + (Note.Length > 0 && Note != Category ? $" · “{Note}”" : "");
 }
 
 public sealed record Account(string Name, decimal OpeningBalance);

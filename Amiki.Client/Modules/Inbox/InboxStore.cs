@@ -11,6 +11,8 @@ public sealed class InboxStore(Api api, SyncQueue sync) : IRemoteStore
 
     public IReadOnlyList<InboxItem> All => _items;
 
+    public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _items)];
+
     public IEnumerable<InboxItem> Newest => _items.OrderByDescending(i => i.CapturedAt);
 
     public async Task LoadAsync(CancellationToken ct)

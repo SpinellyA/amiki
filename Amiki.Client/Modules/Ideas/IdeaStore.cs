@@ -11,6 +11,8 @@ public sealed class IdeaStore(Api api, SyncQueue sync) : IRemoteStore
 
     public IReadOnlyList<Idea> All => _items;
 
+    public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _items)];
+
     public IEnumerable<string> Tags => _items.SelectMany(i => i.Tags).Distinct().Order();
 
     public async Task LoadAsync(CancellationToken ct)

@@ -5,6 +5,8 @@
 @inject FinanceStore Store
 @inject FinanceActions Actions
 
+@* The wrapper lets the row lay itself out by its own width (the drawer eats into the page). *@
+<div class="quick-tx-wrap">
 <MudPaper Outlined="true" Class="quick-tx">
     <MudToggleGroup T="TxKind" Value="_kind" ValueChanged="SetKind" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="quick-tx-kind">
         <MudToggleItem Value="TxKind.Expense" Text="Spent" />
@@ -29,8 +31,9 @@
     </MudSelect>
     <MudTextField T="string" @bind-Value="_note" Immediate="true" Placeholder="Note (optional)" Variant="Variant.Outlined"
                   Margin="Margin.Dense" OnKeyDown="OnKey" Class="quick-tx-note" />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!(_amount > 0)" OnClick="Add">Log</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!(_amount > 0)" OnClick="Add" Class="quick-tx-log">Log</MudButton>
 </MudPaper>
+</div>
 
 @code {
     private TxKind _kind = TxKind.Expense;

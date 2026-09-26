@@ -23,6 +23,21 @@ public static class DevSeed
         db.Ideas.AddRange(Ideas(now));
         db.Inbox.AddRange(Inbox(now));
         var transactions = Transactions(today);
+        // Accounts start at zero, so sample balances come from a first balance check on each,
+        // the same way real ones will.
+        foreach (var (account, amount) in new[] { ("Cash", 800m), ("GCash", 1200m), ("Landbank", 15000m) })
+        {
+            var correction = new Transaction
+            {
+                Date = today.AddDays(-30), Amount = amount, Kind = TxKind.Income, Category = "Balance fix",
+                Account = account, Note = $"Balance check: set {account} to its real balance",
+            };
+            transactions.Add(correction);
+            db.BalanceChecks.Add(new BalanceCheck
+            {
+                Account = account, CheckedAt = today.AddDays(-30).AddHours(9), Expected = 0, Actual = amount, AdjustmentId = correction.Id,
+            });
+        }
         db.Transactions.AddRange(transactions);
 
         var accounts = await db.Accounts.ToListAsync();
@@ -116,7 +131,7 @@ public static class DevSeed
             Out(18, 450, "Transport", "Gas"),
             In(20, 1500, "Allowance", "Weekly baon from Mama"),
             Out(21, 230, "Food", "Jollibee with blockmates"),
-            Out(23, 3000, "School", "Tuition installment", "BPI"),
+            Out(23, 3000, "School", "Tuition installment", "Landbank"),
             In(24, 120, "Refund", "Shopee refund", "GCash"),
             Out(25, 50, "Load & data", "Load"),
             Out(26, 140, "Food", "Dinner"),

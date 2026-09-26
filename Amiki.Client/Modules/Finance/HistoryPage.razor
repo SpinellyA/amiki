@@ -1,0 +1,122 @@
+@page "/money/history"
+@using Amiki.Core
+@using Amiki.Data
+@implements IDisposable
+@inject AuditStore Audit
+@inject SyncQueue Queue
+
+<PageTitle>History · Money · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">History</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Every money change, recorded by the server as it happens. It can't be edited or deleted.</MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="FinanceModule.Views" Current="money/history" />
+    </div>
+</div>
+
+<div class="toolbar">
+    <MudChipSet T="string" @bind-SelectedValue="_entity" SelectionMode="SelectionMode.SingleSelection" CheckMark="false"
+                Color="Color.Primary" Variant="Variant.Text">
+        <MudChip Value="@("")">Everything</MudChip>
+        <MudChip Value="@("transactions")">Transactions</MudChip>
+        <MudChip Value="@("transfers")">Transfers</MudChip>
+        <MudChip Value="@("balance-checks")">Balance checks</MudChip>
+    </MudChipSet>
+    <MudSpacer />
+    <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search" Clearable="true" Margin="Margin.Dense"
+                  Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="toolbar-field" />
+</div>
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Warning" Dense="true">Couldn't load the history: @_error</MudAlert>
+}
+else if (!_loaded)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" aria-label="Loading history" />
+}
+else if (!Shown.Any())
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Large" />
+        <MudText Typo="Typo.body1">Nothing recorded yet.</MudText>
+    </div>
+}
+@foreach (var day in Shown.GroupBy(e => e.At.Date))
+{
+    <div class="task-group">
+        <div class="group-head"><span>@When.Day(day.Key)</span><span class="muted">@day.Count()</span></div>
+        <MudPaper Outlined="true" Class="task-list">
+            @foreach (var entry in day)
+            {
+                <div class="history-row" @key="entry.Id">
+                    <span class="history-icon @entry.Action"><MudIcon Icon="@Icon(entry)" Size="Size.Small" /></span>
+                    <div class="task-main">
+                        <div class="history-summary">@entry.Summary</div>
+                        <div class="task-meta"><span>@entry.At.ToString("h:mm tt")</span><span>@entry.Action</span></div>
+                    </div>
+                </div>
+            }
+        </MudPaper>
+    </div>
+}
+
+@code {
+    private string _entity = "";
+    private string? _search;
+    private bool _loaded;
+    private string? _error;
+
+    private IEnumerable<AuditEntry> Shown => Audit.Entries
+        .Where(e => _entity == "" || e.Entity == _entity)
+        .Where(e => string.IsNullOrWhiteSpace(_search) || e.Summary.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(e => e.Id);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Audit.Changed += OnChanged;
+        // Changes you just made reach the server (and its history) moments later; reload when they have.
+        Queue.Drained += OnDrained;
+        await LoadAsync();
+    }
+
+    public void Dispose()
+    {
+        Audit.Changed -= OnChanged;
+        Queue.Drained -= OnDrained;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    private void OnDrained() => _ = InvokeAsync(LoadAsync);
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await Audit.LoadAsync(cts.Token);
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    private static string Icon(AuditEntry e) => e.Entity switch
+    {
+        "transfers" => Icons.Material.Filled.SwapHoriz,
+        "balance-checks" => Icons.Material.Outlined.FactCheck,
+        _ => e.Action switch
+        {
+            "deleted" => Icons.Material.Outlined.DeleteOutline,
+            "edited" => Icons.Material.Outlined.Edit,
+            _ => Icons.Material.Outlined.ReceiptLong,
+        },
+    };
+}

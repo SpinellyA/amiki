@@ -8,12 +8,15 @@ public static class FinanceModule
     [
         new("Overview", Icons.Material.Outlined.AccountBalanceWallet, "money"),
         new("What if", Icons.Material.Outlined.ShowChart, "money/plan"),
+        new("History", Icons.Material.Outlined.History, "money/history"),
     ];
 
     public static IServiceCollection AddFinanceModule(this IServiceCollection services)
     {
         services.AddSingleton<FinanceStore>();
         services.AddSingleton<PlanStore>();
+        // Loaded when the History page opens, not on every background refresh.
+        services.AddSingleton<AuditStore>();
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<FinanceStore>());
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<PlanStore>());
         services.AddScoped<FinanceActions>();

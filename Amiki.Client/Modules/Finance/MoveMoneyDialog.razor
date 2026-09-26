@@ -1,0 +1,100 @@
+@* Move money between your own accounts, with a live before → after for both sides. *@
+@inject FinanceStore Store
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <div class="move-accounts">
+                <MudSelect T="string" @bind-Value="Item.From" Label="From" Variant="Variant.Outlined" Dense="true">
+                    @foreach (var a in Store.Accounts)
+                    {
+                        <MudSelectItem Value="a.Name">@a.Name · @Signed(Store.Balance(a.Name))</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" aria-label="Swap from and to" OnClick="Swap" Class="move-swap" />
+                <MudSelect T="string" @bind-Value="Item.To" Label="To" Variant="Variant.Outlined" Dense="true">
+                    @foreach (var a in Store.Accounts)
+                    {
+                        <MudSelectItem Value="a.Name" Disabled="a.Name == Item.From">@a.Name · @Signed(Store.Balance(a.Name))</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <MudStack Row="true" Spacing="3">
+                <MudNumericField T="decimal" @bind-Value="Item.Amount" Immediate="true" Label="Amount" Variant="Variant.Outlined"
+                                 Adornment="Adornment.Start" AdornmentText="₱" Min="0" HideSpinButtons="true" Format="#,0.##" AutoFocus="true" />
+                <MudNumericField T="decimal" @bind-Value="Item.Fee" Immediate="true" Label="Fee (optional)" Variant="Variant.Outlined"
+                                 Adornment="Adornment.Start" AdornmentText="₱" Min="0" HideSpinButtons="true" Format="#,0.##"
+                                 HelperText="e.g. ₱15 InstaPay" />
+            </MudStack>
+            <MudStack Row="true" Spacing="3">
+                <MudDatePicker @bind-Date="Date" Label="Date" Variant="Variant.Outlined" DateFormat="ddd, MMM d" />
+                <MudTextField T="string" @bind-Value="Item.Note" Label="Note (optional)" Variant="Variant.Outlined" />
+            </MudStack>
+
+            @if (Ready)
+            {
+                <div class="move-preview" role="status">
+                    @Line(Item.From, -Item.TotalOut)
+                    @Line(Item.To, Item.Amount)
+                    <div class="move-total muted">
+                        Total across accounts: @(Item.Fee > 0 ? $"−{Money.Format(Item.Fee)} (the fee)" : "unchanged")
+                    </div>
+                </div>
+                @if (AfterFrom < 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true">@Item.From would go below zero. Double-check the amount or the account.</MudAlert>
+                }
+            }
+            else if (Item.Validate() is { } problem && Item.Amount > 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">@problem</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="!Ready" OnClick="() => Dialog.Close(DialogResult.Ok(Item))">Move</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public Transfer Item { get; set; } = new();
+
+    // Editing an existing transfer: take its current effect out before previewing the new one.
+    private Transfer? _original;
+
+    protected override void OnInitialized()
+    {
+        _original = Store.Transfers.FirstOrDefault(t => t.Id == Item.Id);
+        if (string.IsNullOrEmpty(Item.From)) Item.From = Store.Accounts.MaxBy(a => Store.Balance(a.Name))?.Name ?? "";
+        if (string.IsNullOrEmpty(Item.To)) Item.To = Store.Accounts.FirstOrDefault(a => a.Name != Item.From)?.Name ?? "";
+    }
+
+    private bool Ready => Item.Validate() is null;
+
+    private DateTime? Date
+    {
+        get => Item.Date;
+        set => Item.Date = value?.Date ?? DateTime.Today;
+    }
+
+    private decimal CurrentBalance(string account) =>
+        Store.Balance(account)
+        + (_original is null ? 0 : (_original.From == account ? _original.TotalOut : 0) - (_original.To == account ? _original.Amount : 0));
+
+    private decimal AfterFrom => CurrentBalance(Item.From) - Item.TotalOut;
+
+    private void Swap() => (Item.From, Item.To) = (Item.To, Item.From);
+
+    private RenderFragment Line(string account, decimal change) => __builder =>
+    {
+        <div class="move-line">
+            <span>@account</span>
+            <span class="muted">@Signed(CurrentBalance(account)) → <b class="@(CurrentBalance(account) + change < 0 ? "neg" : "")">@Signed(CurrentBalance(account) + change)</b></span>
+            <span class="move-change @(change < 0 ? "" : "in")">@Money.Signed(change)</span>
+        </div>
+    };
+
+    private static string Signed(decimal v) => (v < 0 ? "−" : "") + Money.Format(v);
+}

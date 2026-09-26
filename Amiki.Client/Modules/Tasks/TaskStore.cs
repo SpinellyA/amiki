@@ -15,6 +15,8 @@ public sealed class TaskStore(Api api, SyncQueue sync) : IRemoteStore
 
     public IReadOnlyList<TaskItem> All => _items;
 
+    public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _items)];
+
     public IEnumerable<string> Projects =>
         _items.Select(t => t.Project).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Order();
 

@@ -1,0 +1,28 @@
+<div class="tx-row">
+    <span class="tx-icon transfer">
+        <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" />
+    </span>
+    <div class="task-main" @onclick="() => OnEdit.InvokeAsync(Item)">
+        <div class="task-title">@Item.From → @Item.To</div>
+        <div class="task-meta">
+            <span>Moved</span>
+            @if (Item.Fee > 0)
+            {
+                <span>fee @Money.Format(Item.Fee)</span>
+            }
+            @if (Item.Note.Length > 0)
+            {
+                <span>@Item.Note</span>
+            }
+        </div>
+    </div>
+    <span class="tx-amount transfer-amount">@Money.Format(Item.Amount)</span>
+    <MudIconButton Class="task-delete" Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small"
+                   aria-label="Delete transfer" OnClick="() => OnDelete.InvokeAsync(Item)" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Transfer Item { get; set; } = default!;
+    [Parameter] public EventCallback<Transfer> OnEdit { get; set; }
+    [Parameter] public EventCallback<Transfer> OnDelete { get; set; }
+}

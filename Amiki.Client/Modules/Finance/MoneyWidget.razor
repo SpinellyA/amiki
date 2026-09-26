@@ -9,7 +9,7 @@
         <MudLink Href="money" Typo="Typo.body2">Details →</MudLink>
     </div>
     @{
-        var month = Store.InMonth(DateTime.Today).ToList();
+        var month = Store.FlowsInMonth(DateTime.Today).ToList();
         var spent = month.Where(t => t.Kind == TxKind.Expense).Sum(t => t.Amount);
     }
     <div class="stat-row">
