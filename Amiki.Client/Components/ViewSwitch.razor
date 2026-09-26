@@ -1,0 +1,21 @@
+@* Segmented control that switches between a module's pages (Tasks: List/Calendar, Money: Overview/What-if). *@
+@inject NavigationManager Nav
+
+<MudToggleGroup T="string" Value="Current" ValueChanged="v => Nav.NavigateTo(v)"
+                Color="Color.Primary" Size="Size.Small" Outlined="true" Class="view-switch">
+    @foreach (var view in Views)
+    {
+        <MudToggleItem Value="view.Href">
+            <MudIcon Icon="@view.Icon" Size="Size.Small" Class="mr-1" /> @view.Label
+        </MudToggleItem>
+    }
+</MudToggleGroup>
+
+@code {
+    public sealed record View(string Label, string Icon, string Href);
+
+    [Parameter, EditorRequired] public IReadOnlyList<View> Views { get; set; } = [];
+
+    /// <summary>Href of the page this sits on.</summary>
+    [Parameter, EditorRequired] public string Current { get; set; } = "";
+}

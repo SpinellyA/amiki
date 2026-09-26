@@ -1,0 +1,26 @@
+@inject InboxTriage Triage
+
+<div class="inbox-row">
+    <div class="inbox-main">
+        <div class="inbox-text">@Item.Text</div>
+        <div class="task-meta"><span>@When.Short(Item.CapturedAt)</span></div>
+    </div>
+    <div class="inbox-actions">
+        <MudTooltip Text="Make it a task">
+            <MudIconButton Icon="@Icons.Material.Outlined.TaskAlt" Size="Size.Small" Color="Color.Primary"
+                           aria-label="Make it a task" OnClick="() => Triage.ToTaskAsync(Item)" />
+        </MudTooltip>
+        <MudTooltip Text="Keep as an idea">
+            <MudIconButton Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" Color="Color.Warning"
+                           aria-label="Keep as an idea" OnClick="() => Triage.ToIdea(Item)" />
+        </MudTooltip>
+        <MudTooltip Text="Discard">
+            <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small"
+                           aria-label="Discard" OnClick="() => Triage.Discard(Item)" />
+        </MudTooltip>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public InboxItem Item { get; set; } = default!;
+}

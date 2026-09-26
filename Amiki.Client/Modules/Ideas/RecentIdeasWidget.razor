@@ -1,0 +1,34 @@
+@implements IDisposable
+@inject IdeaStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" />
+        <span>Recent ideas</span>
+        <MudSpacer />
+        <MudLink Href="ideas" Typo="Typo.body2">All ideas →</MudLink>
+    </div>
+    <div class="task-list mt-3">
+        @foreach (var idea in Store.All.OrderByDescending(i => i.CreatedAt).Take(5))
+        {
+            <div class="inbox-row">
+                <div class="inbox-main">
+                    <div class="inbox-text">@idea.Text</div>
+                    <div class="task-meta">
+                        <span>@When.Short(idea.CreatedAt)</span>
+                        @foreach (var tag in idea.Tags)
+                        {
+                            <span>#@tag</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

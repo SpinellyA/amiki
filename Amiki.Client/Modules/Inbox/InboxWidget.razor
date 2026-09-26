@@ -1,0 +1,43 @@
+@implements IDisposable
+@inject InboxStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Inbox" Size="Size.Small" />
+        <span>Inbox</span>
+        @if (Store.All.Count > 0)
+        {
+            <span class="count-pill">@Store.All.Count</span>
+        }
+        <MudSpacer />
+        <MudLink Href="inbox" Typo="Typo.body2">Sort all →</MudLink>
+    </div>
+    <div class="px-3 pt-2 pb-2">
+        <CaptureField Margin="Margin.Dense" />
+    </div>
+    @if (Store.All.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="muted px-4 pb-3">Inbox zero. Nothing to sort.</MudText>
+    }
+    else
+    {
+        <div class="task-list">
+            @foreach (var item in Store.Newest.Take(MaxShown))
+            {
+                <InboxRow @key="item.Id" Item="item" />
+            }
+        </div>
+        @if (Store.All.Count > MaxShown)
+        {
+            <MudLink Href="inbox" Typo="Typo.body2" Class="d-block px-4 pt-2">+@(Store.All.Count - MaxShown) more</MudLink>
+        }
+    }
+</MudPaper>
+
+@code {
+    private const int MaxShown = 5;
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

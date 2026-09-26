@@ -1,0 +1,412 @@
+@page "/money/plan"
+@implements IDisposable
+@inject PlanStore Plans
+@inject FinanceStore Finance
+@inject ISnackbar Snackbar
+
+<PageTitle>What if · Money · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">What if</MudText>
+        <MudText Typo="Typo.body2" Class="muted">List what you might spend or get, see what's left. Copy a plan to try another version.</MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="FinanceModule.Views" Current="money/plan" />
+    </div>
+</div>
+
+@* Plan picker: every plan with its bottom line, so switching is also a quick comparison. *@
+<div class="plan-strip" role="tablist" aria-label="Plans">
+    @foreach (var plan in Plans.Active)
+    {
+        var dips = plan.Lowest().Balance < 0;
+        <button type="button" role="tab" aria-selected="@(plan == _plan)" class="plan-card @(plan == _plan ? "active" : "")"
+                @onclick="() => Select(plan)">
+            <span class="plan-card-name">@plan.Name</span>
+            <span class="plan-card-value @(plan.LeftOver < 0 ? "neg" : "")">@Signed(plan.LeftOver) left</span>
+            @if (dips)
+            {
+                <span class="plan-card-warn"><MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" /> goes negative</span>
+            }
+        </button>
+    }
+    <button type="button" class="plan-card plan-card-new" @onclick="NewPlan">
+        <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" /> New plan
+    </button>
+</div>
+
+@if (_plan is null)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.Calculate" Size="Size.Large" />
+        <MudText Typo="Typo.body1">No plans yet.</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NewPlan">Start a plan</MudButton>
+    </div>
+}
+else
+{
+    var lowest = _plan.Lowest();
+    var readOnly = _plan.IsArchived;
+    <MudPaper Outlined="true" Class="@($"receipt {(readOnly ? "archived" : "")}")">
+        @if (readOnly)
+        {
+            <div class="archived-banner" role="status">
+                <MudIcon Icon="@Icons.Material.Outlined.Inventory2" Size="Size.Small" />
+                <span>Archived @_plan.ArchivedAt!.Value.ToString("MMM d, yyyy"). Read-only, kept for looking back.</span>
+                <MudSpacer />
+                <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="() => Duplicate(_plan)">Copy as new plan</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Unarchive" OnClick="() => Unarchive(_plan)">Restore</MudButton>
+            </div>
+        }
+        <div class="receipt-head">
+            <MudTextField T="string" @bind-Value="_plan.Name" @bind-Value:after="Touch" Variant="Variant.Text" Underline="false"
+                          ReadOnly="readOnly" Class="receipt-title" aria-label="Plan name" />
+            @if (!readOnly)
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="() => Duplicate(_plan)">
+                    Copy to compare
+                </MudButton>
+            }
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" aria-label="Plan actions">
+                @if (!readOnly)
+                {
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Update" OnClick="() => Plans.UpdateToToday(_plan)">
+                        Update to today's balance (@Money.Format(Finance.TotalBalance))
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Archive" OnClick="() => Archive(_plan)">Archive plan</MudMenuItem>
+                }
+                else
+                {
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Unarchive" OnClick="() => Unarchive(_plan)">Restore plan</MudMenuItem>
+                }
+                <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Delete(_plan)">Delete plan</MudMenuItem>
+            </MudMenu>
+        </div>
+
+        <div class="rc-line rc-start">
+            <span>
+                Starting balance
+                <span class="muted rc-sub">your real balance on @_plan.StartDate.ToString(_plan.StartDate.Year == DateTime.Today.Year ? "MMM d" : "MMM d, yyyy")</span>
+            </span>
+            <span class="rc-amount">@Signed(_plan.StartBalance)</span>
+        </div>
+
+        @foreach (var item in _plan.Timeline.ToList())
+        {
+            <div class="rc-line rc-item" @key="item.Id">
+                <button type="button" class="rc-sign @(item.Kind == TxKind.Income ? "in" : "out")" disabled="@readOnly"
+                        title="@(item.Kind == TxKind.Income ? "Money in. Click to make it money out." : "Money out. Click to make it money in.")"
+                        aria-label="@(item.Kind == TxKind.Income ? "Money in, switch to money out" : "Money out, switch to money in")"
+                        @onclick="() => { item.Kind = item.Kind == TxKind.Income ? TxKind.Expense : TxKind.Income; Touch(); }">
+                    @(item.Kind == TxKind.Income ? "+" : "−")
+                </button>
+                <MudTextField T="string" @bind-Value="item.Name" @bind-Value:after="Touch" Variant="Variant.Text" Underline="false"
+                              ReadOnly="readOnly" Placeholder="What is it?" Class="rc-name" aria-label="Item" />
+                <MudSelect T="DateTime" Value="item.Date" ValueChanged="d => { item.Date = d; Touch(); }" Variant="Variant.Text"
+                           ReadOnly="readOnly" Underline="false" Dense="true" Class="rc-when" aria-label="When">
+                    @foreach (var when in WhenOptions(item.Date))
+                    {
+                        <MudSelectItem Value="when">@WhenLabel(when)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField T="decimal" @bind-Value="item.Amount" @bind-Value:after="Touch" Variant="Variant.Text" Underline="false"
+                                 ReadOnly="readOnly" HideSpinButtons="true" Min="0" Format="#,0.##" Adornment="Adornment.Start" AdornmentText="₱"
+                                 Class="@($"rc-amount-field {(item.Kind == TxKind.Income ? "in" : "")}")" aria-label="Amount" />
+                @if (!readOnly)
+                {
+                    <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" aria-label="Remove"
+                                   OnClick="() => { _plan.Items.Remove(item); Touch(); }" />
+                }
+            </div>
+        }
+
+        <div class="rc-add" hidden="@readOnly">
+            <MudToggleGroup T="TxKind" @bind-Value="_newKind" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="rc-add-kind">
+                <MudToggleItem Value="TxKind.Expense" Text="Spend" />
+                <MudToggleItem Value="TxKind.Income" Text="Get" />
+            </MudToggleGroup>
+            <MudTextField T="string" @ref="_newNameField" @bind-Value="_newName" Immediate="true" OnKeyDown="OnAddKey"
+                          Placeholder="@(_newKind == TxKind.Income ? "e.g. October allowance" : "e.g. New laptop")"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" aria-label="What" />
+            <MudNumericField T="decimal?" @bind-Value="_newAmount" Immediate="true" OnKeyDown="OnAddKey" Placeholder="0"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0"
+                             Adornment="Adornment.Start" AdornmentText="₱" aria-label="Amount" />
+            <MudSelect T="DateTime" @bind-Value="_newDate" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="When">
+                @foreach (var when in WhenOptions(_newDate))
+                {
+                    <MudSelectItem Value="when">@WhenLabel(when)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!CanAdd" OnClick="Add">Add</MudButton>
+        </div>
+
+        <div class="rc-line rc-total">
+            <span>Left over</span>
+            <span class="@(_plan.LeftOver < 0 ? "neg" : "")">@Signed(_plan.LeftOver)</span>
+        </div>
+
+        @if (lowest.Balance < 0)
+        {
+            <div class="plan-alert" role="status">
+                <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                <span><b>Goes down to @Signed(lowest.Balance) @LowerFirst(WhenLabel(lowest.Date))</b>@(_plan.LeftOver < 0
+                    ? $", and ends {Money.Format(_plan.LeftOver)} short."
+                    : ", before later money comes in. Moving a purchase later would avoid it.")</span>
+            </div>
+        }
+    </MudPaper>
+
+    @if (Columns.Count > 1)
+    {
+        <MudPaper Outlined="true" Class="widget compare">
+            <div class="widget-head">
+                <MudIcon Icon="@Icons.Material.Outlined.CompareArrows" Size="Size.Small" />
+                <span>Side by side</span>
+            </div>
+            <div class="compare-wrap">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            @foreach (var plan in Columns)
+                            {
+                                <th class="@(plan == _plan ? "current" : "")">
+                                    <div class="compare-head">
+                                        <button type="button" class="compare-name" @onclick="() => Select(plan)">
+                                            @if (plan.IsArchived) { <MudIcon Icon="@Icons.Material.Outlined.Inventory2" Size="Size.Small" Class="compare-warn muted" /> }
+                                            @plan.Name
+                                        </button>
+                                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" aria-label="@($"Actions for {plan.Name}")">
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.OpenInNew" OnClick="() => Select(plan)">Open</MudMenuItem>
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.ContentCopy" OnClick="() => Duplicate(plan)">Copy</MudMenuItem>
+                                            @if (plan.IsArchived)
+                                            {
+                                                <MudMenuItem Icon="@Icons.Material.Outlined.Unarchive" OnClick="() => Unarchive(plan)">Restore</MudMenuItem>
+                                            }
+                                            else
+                                            {
+                                                <MudMenuItem Icon="@Icons.Material.Outlined.Archive" OnClick="() => Archive(plan)">Archive</MudMenuItem>
+                                            }
+                                            <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Delete(plan)">Delete</MudMenuItem>
+                                        </MudMenu>
+                                    </div>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>Starting balance</th>
+                            @foreach (var plan in Columns) { <td class="@(plan == _plan ? "current" : "")">@Signed(plan.StartBalance)<span class="muted rc-sub">@plan.StartDate.ToString("MMM d")</span></td> }
+                        </tr>
+                        <tr>
+                            <th>Spending</th>
+                            @foreach (var plan in Columns) { <td class="@(plan == _plan ? "current" : "")">−@Money.Format(plan.Spending)</td> }
+                        </tr>
+                        <tr>
+                            <th>Money in</th>
+                            @foreach (var plan in Columns) { <td class="@(plan == _plan ? "current" : "")">+@Money.Format(plan.Income)</td> }
+                        </tr>
+                        <tr class="compare-total">
+                            <th>Left over</th>
+                            @foreach (var plan in Columns) { <td class="@(plan == _plan ? "current" : "") @(plan.LeftOver < 0 ? "neg" : "")">@Signed(plan.LeftOver)</td> }
+                        </tr>
+                        <tr>
+                            <th>vs. @_plan.Name</th>
+                            @foreach (var plan in Columns)
+                            {
+                                var diff = plan.LeftOver - _plan.LeftOver;
+                                <td class="@(plan == _plan ? "current" : "")">
+                                    @(plan == _plan ? "–" : diff == 0 ? "same" : $"{Money.Signed(diff)} {(diff > 0 ? "more" : "less")}")
+                                </td>
+                            }
+                        </tr>
+                        <tr>
+                            <th>Lowest point</th>
+                            @foreach (var plan in Columns)
+                            {
+                                var low = plan.Lowest();
+                                <td class="@(plan == _plan ? "current" : "") @(low.Balance < 0 ? "neg" : "")">
+                                    @if (low.Balance < 0) { <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" Class="compare-warn" /> }
+                                    @Signed(low.Balance)<span class="muted rc-sub">@WhenLabel(low.Date, plan)</span>
+                                </td>
+                            }
+                        </tr>
+                        <tr class="compare-items">
+                            <th>Items</th>
+                            @foreach (var plan in Columns)
+                            {
+                                <td class="@(plan == _plan ? "current" : "")">
+                                    @foreach (var item in plan.Timeline)
+                                    {
+                                        <div><span>@item.Name</span><span>@Money.Signed(item.Signed)</span></div>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </MudPaper>
+    }
+}
+
+@if (Plans.Archived.Count > 0)
+{
+    <div class="archived-section">
+        <button type="button" class="archived-toggle" aria-expanded="@_showArchived" @onclick="() => _showArchived = !_showArchived">
+            <MudIcon Icon="@(_showArchived ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+            Archived plans (@Plans.Archived.Count)
+        </button>
+        @if (_showArchived)
+        {
+            <MudPaper Outlined="true" Class="task-list">
+                @foreach (var plan in Plans.Archived)
+                {
+                    <div class="archived-row @(plan == _plan ? "active" : "")" @key="plan.Id">
+                        <div class="scn-main" @onclick="() => Select(plan)">
+                            <div class="task-title">@plan.Name</div>
+                            <div class="task-meta">
+                                <span class="@(plan.LeftOver < 0 ? "neg" : "")">@Signed(plan.LeftOver) left</span>
+                                <span>from @plan.StartDate.ToString("MMM d, yyyy")</span>
+                                <span>archived @plan.ArchivedAt!.Value.ToString("MMM d")</span>
+                            </div>
+                        </div>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Select(plan)">View</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Unarchive(plan)">Restore</MudButton>
+                        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" aria-label="@($"Delete {plan.Name}")"
+                                       OnClick="() => Delete(plan)" />
+                    </div>
+                }
+            </MudPaper>
+        }
+    </div>
+}
+
+@code {
+    // Held by id: a refresh from the server replaces the plan objects, and the open plan
+    // should follow along rather than point at a stale copy.
+    private Guid? _planId;
+    private Plan? _plan => _planId is { } id ? Plans.Get(id) : null;
+    private TxKind _newKind = TxKind.Expense;
+    private string _newName = "";
+    private decimal? _newAmount;
+    private DateTime _newDate;
+    private MudTextField<string>? _newNameField;
+    private bool _showArchived;
+
+    /// <summary>Comparison columns: active plans, plus the archived one you're looking at so you can hold it up against them.</summary>
+    private List<Plan> Columns =>
+        _plan is { IsArchived: true } ? [.. Plans.Active, _plan] : [.. Plans.Active];
+
+    private bool CanAdd => _newAmount > 0 && !string.IsNullOrWhiteSpace(_newName);
+
+    protected override void OnInitialized()
+    {
+        Plans.Changed += OnChanged;
+        Select(Plans.Active.FirstOrDefault());
+    }
+
+    public void Dispose() => Plans.Changed -= OnChanged;
+
+    private void Select(Plan? plan)
+    {
+        _planId = plan?.Id;
+        _newDate = plan?.StartDate ?? DateTime.Today;
+    }
+
+    private static string LowerFirst(string s) => s.Length == 0 ? s : char.ToLowerInvariant(s[0]) + s[1..];
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void Touch()
+    {
+        if (_plan is not null) Plans.Touch(_plan);
+    }
+
+    // "Now" (the plan's snapshot date), then the next 12 months. Keeps any odd date an item already has.
+    private IEnumerable<DateTime> WhenOptions(DateTime current)
+    {
+        var start = _plan?.StartDate ?? DateTime.Today;
+        var firstOfMonth = new DateTime(start.Year, start.Month, 1);
+        var options = Enumerable.Range(1, 12).Select(i => firstOfMonth.AddMonths(i)).Prepend(start).ToList();
+        if (!options.Contains(current)) options.Add(current);
+        return options.Order();
+    }
+
+    private string WhenLabel(DateTime date) => WhenLabel(date, _plan);
+
+    // An archived plan's "now" was its snapshot day, so it shows the actual date instead.
+    private static string WhenLabel(DateTime date, Plan? plan) =>
+        date == plan?.StartDate ? (plan.IsArchived ? $"On {date:MMM d}" : "Now")
+        : date.Day == 1 ? (date.Year == DateTime.Today.Year ? $"In {date:MMMM}" : $"In {date:MMMM yyyy}")
+        : $"On {date:MMM d}";
+
+    private async Task OnAddKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Add();
+    }
+
+    private async Task Add()
+    {
+        if (_plan is null || !CanAdd) return;
+        _plan.Items.Add(new PlanItem { Name = _newName.Trim(), Kind = _newKind, Amount = _newAmount!.Value, Date = _newDate });
+        Touch();
+        _newName = "";
+        _newAmount = null;
+        if (_newNameField is not null) await _newNameField.FocusAsync();
+    }
+
+    private void NewPlan() => Select(Plans.Create($"Plan {Plans.All.Count + 1}"));
+
+    private void Duplicate(Plan plan)
+    {
+        Select(Plans.Duplicate(plan));
+        Snackbar.Add("Copied. Change this one and compare below.", Severity.Normal);
+    }
+
+    private void Archive(Plan plan)
+    {
+        var wasOpen = plan == _plan;
+        Plans.Archive(plan);
+        if (wasOpen) Select(Plans.Active.FirstOrDefault());
+        WithUndo($"Archived “{plan.Name}”. Find it under Archived plans.", () =>
+        {
+            Plans.Unarchive(plan);
+            if (wasOpen) Select(plan);
+        });
+    }
+
+    private void Unarchive(Plan plan)
+    {
+        Plans.Unarchive(plan);
+        Select(plan);
+        Snackbar.Add($"Restored “{plan.Name}”", Severity.Normal);
+    }
+
+    private void Delete(Plan plan)
+    {
+        var wasOpen = plan == _plan;
+        Plans.Delete(plan);
+        if (wasOpen) Select(Plans.Active.FirstOrDefault());
+        WithUndo($"Deleted “{plan.Name}”", () =>
+        {
+            Plans.Restore(plan);
+            if (wasOpen) Select(plan);
+        });
+    }
+
+    private void WithUndo(string message, Action undo) =>
+        Snackbar.Add(message, Severity.Normal, c =>
+        {
+            c.Action = "Undo";
+            c.ActionColor = Color.Primary;
+            c.OnClick = _ =>
+            {
+                undo();
+                return InvokeAsync(StateHasChanged);
+            };
+        });
+
+    private static string Signed(decimal v) => (v < 0 ? "−" : "") + Money.Format(v);
+}

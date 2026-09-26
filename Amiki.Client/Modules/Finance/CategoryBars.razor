@@ -1,0 +1,50 @@
+@*
+    "Where it went": spending per category as horizontal bars. One series, so one colour and no
+    legend; the category name and icon carry identity, the value sits at the bar tip.
+*@
+
+@if (_rows.Count == 0)
+{
+    <MudText Typo="Typo.body2" Class="muted py-2">No spending this month.</MudText>
+}
+<div class="cat-bars" role="list">
+    @foreach (var row in _rows.Take(Max))
+    {
+        <button type="button" role="listitem" class="@($"cat-row{(row.Name == Selected ? " selected" : "")}{(Selected is not null && row.Name != Selected ? " dimmed" : "")}")"
+                title="@($"{row.Name}: {Money.Format(row.Amount)} · {row.Share:0%} of spending · {row.Count} transaction{(row.Count == 1 ? "" : "s")}")"
+                disabled="@(!SelectedChanged.HasDelegate)"
+                @onclick="() => SelectedChanged.InvokeAsync(row.Name == Selected ? null : row.Name)">
+            <span class="cat-label">
+                <MudIcon Icon="@Categories.Get(row.Name).Icon" Size="Size.Small" />
+                @row.Name
+            </span>
+            <span class="cat-track">
+                @* Scaled against the track minus room for the value label, so the longest bar and its label always fit. *@
+                <span class="cat-bar" style="width: calc((100% - 7.5rem) * @((row.Amount / _max).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)))"></span>
+                <span class="cat-value">@Money.Format(row.Amount) <span class="muted">@row.Share.ToString("0%")</span></span>
+            </span>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<Transaction> Transactions { get; set; } = [];
+    [Parameter] public int Max { get; set; } = int.MaxValue;
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string?> SelectedChanged { get; set; }
+
+    private sealed record Row(string Name, decimal Amount, int Count, decimal Share);
+    private List<Row> _rows = [];
+    private decimal _max = 1;
+
+    protected override void OnParametersSet()
+    {
+        var spending = Transactions.Where(t => t.Kind == TxKind.Expense).ToList();
+        var total = spending.Sum(t => t.Amount);
+        _rows = spending.GroupBy(t => t.Category)
+            .Select(g => new Row(g.Key, g.Sum(t => t.Amount), g.Count(), total == 0 ? 0 : g.Sum(t => t.Amount) / total))
+            .OrderByDescending(r => r.Amount)
+            .ToList();
+        _max = _rows.Count > 0 ? _rows[0].Amount : 1;
+    }
+}

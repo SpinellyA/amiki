@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Amiki</title>
+    <base href="/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/app.css" />
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <!-- Plain name on purpose: the server's static-asset map points it at the current hashed file.
+         The build-time #[.{fingerprint}] placeholder isn't filled in when the API hosts the app. -->
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        // Firefox won't start an HTML5 drag unless dataTransfer has data; Blazor can't set it.
+        document.addEventListener('dragstart', e => e.dataTransfer?.setData('text/plain', ''));
+
+        window.amiki = {
+            // Tells .NET when the tab comes back into view, so data captured elsewhere shows up.
+            onTabVisible(dotnet, method) {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') dotnet.invokeMethodAsync(method);
+                });
+            },
+        };
+    </script>
+</body>
+
+</html>

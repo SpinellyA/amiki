@@ -1,0 +1,178 @@
+@inherits LayoutComponentBase
+@using Amiki.Data
+@inject IEnumerable<ModuleInfo> Modules
+@inject DataSync Sync
+@inject Session Session
+@inject NavigationManager Nav
+
+<MudThemeProvider Theme="_theme" @bind-IsDarkMode="_dark" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (_state == LoadState.SignIn)
+{
+    <main class="signin-page">
+        <div class="signin-card">
+            <span class="brand signin-brand">amiki</span>
+            <MudText Typo="Typo.body1" Class="muted">Your personal control panel.</MudText>
+            @if (AuthMessage is { } message)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-4">@message</MudAlert>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-6"
+                       StartIcon="@Icons.Custom.Brands.Google" OnClick="Session.SignIn">Sign in with Google</MudButton>
+        </div>
+    </main>
+}
+else
+{
+    <MudLayout>
+        <MudAppBar Elevation="0" Dense="true" Class="appbar">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                           aria-label="Toggle navigation" OnClick="() => _drawerOpen = !_drawerOpen" />
+            <span class="brand">amiki</span>
+            <MudSpacer />
+            <span class="appbar-date">@DateTime.Today.ToString("dddd, MMMM d")</span>
+            @if (_state == LoadState.Ready)
+            {
+                <SyncStatus />
+            }
+            <MudIconButton Icon="@(_dark ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                           Color="Color.Inherit" aria-label="Toggle dark mode" OnClick="() => _dark = !_dark" />
+            @if (Session.Current is { SignInEnabled: true } me)
+            {
+                <MudMenu Icon="@Icons.Material.Outlined.AccountCircle" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight"
+                         TransformOrigin="Origin.TopRight" aria-label="Account">
+                    <div class="account-head">
+                        <div class="task-title">@me.Name</div>
+                        <div class="muted account-email">@me.Email</div>
+                    </div>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Logout" OnClick="Session.SignOutAsync">Sign out</MudMenuItem>
+                </MudMenu>
+            }
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Responsive" Class="drawer">
+            <MudNavMenu Class="mt-3">
+                <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.SpaceDashboard">Dashboard</MudNavLink>
+                <div class="nav-section">Modules</div>
+                @foreach (var module in Modules.OrderBy(m => m.Order))
+                {
+                    <MudNavLink Href="@module.Href" Icon="@module.Icon">@module.Name</MudNavLink>
+                }
+            </MudNavMenu>
+        </MudDrawer>
+
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.Large" Class="page">
+                @switch (_state)
+                {
+                    case LoadState.Error:
+                        <div class="empty" role="alert">
+                            <MudIcon Icon="@Icons.Material.Outlined.CloudOff" Size="Size.Large" />
+                            <MudText Typo="Typo.body1">Couldn't reach the Amiki server.</MudText>
+                            <MudText Typo="Typo.body2" Class="muted">@_loadError</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Try again</MudButton>
+                        </div>
+                        break;
+                    case LoadState.Loading:
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" aria-label="Loading your data" />
+                        break;
+                    default:
+                        @Body
+                        break;
+                }
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+
+    @if (_state == LoadState.Ready)
+    {
+        @foreach (var overlay in Modules.Select(m => m.Overlay).OfType<Type>())
+        {
+            <DynamicComponent Type="overlay" />
+        }
+    }
+}
+
+@code {
+    private enum LoadState { Loading, SignIn, Error, Ready }
+
+    private LoadState _state = LoadState.Loading;
+    private string? _loadError;
+
+    // Set by the server when a Google sign-in is turned away (?auth=denied) or doesn't finish.
+    private string? AuthMessage =>
+        Nav.Uri.Contains("auth=denied") ? "That Google account can't use this Amiki. Sign in with the owner's account."
+        : Nav.Uri.Contains("auth=failed") ? "Sign-in didn't finish. Please try again."
+        : null;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    // Pages render only once you're signed in and every module's data has arrived.
+    private async Task LoadAsync()
+    {
+        _state = LoadState.Loading;
+        _loadError = null;
+        try
+        {
+            if (await Session.LoadAsync() is null)
+            {
+                _state = LoadState.SignIn;
+                return;
+            }
+            await Sync.EnsureLoadedAsync();
+            _state = LoadState.Ready;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _state = LoadState.SignIn;
+            Sync.Reset();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            _state = LoadState.Error;
+            Sync.Reset();
+        }
+    }
+    private bool _drawerOpen = true;
+    private bool _dark = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#5B4BDB",
+            Background = "#F6F7FB",
+            Surface = "#FFFFFF",
+            AppbarBackground = "#F6F7FB",
+            AppbarText = "#1B1D23",
+            DrawerBackground = "#F6F7FB",
+            TextPrimary = "#1B1D23",
+            TextSecondary = "#5F6472",
+            LinesDefault = "#E3E5EC",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#8E80FF",
+            Background = "#0E1014",
+            Surface = "#15181E",
+            AppbarBackground = "#0E1014",
+            AppbarText = "#E7E9EE",
+            DrawerBackground = "#0E1014",
+            DrawerText = "#C9CCD4",
+            TextPrimary = "#E7E9EE",
+            TextSecondary = "#8C91A0",
+            LinesDefault = "#242832",
+            ActionDefault = "#9AA0AE",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["Inter", "system-ui", "sans-serif"] },
+        },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" },
+    };
+}

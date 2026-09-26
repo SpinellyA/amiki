@@ -1,0 +1,109 @@
+@page "/ideas"
+@implements IDisposable
+@inject IdeaStore Store
+@inject TaskActions Tasks
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>Ideas · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Ideas</MudText>
+        <MudText Typo="Typo.body2" Class="muted">@Store.All.Count ideas · @Store.Tags.Count() tags</MudText>
+    </div>
+</div>
+
+<MudTextField T="string" @bind-Value="_draft" Immediate="true" OnKeyDown="OnKey"
+              Placeholder="Jot an idea… #tags optional" Variant="Variant.Outlined"
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Lightbulb" />
+
+<div class="toolbar">
+    <MudChipSet T="string" @bind-SelectedValue="_tag" SelectionMode="SelectionMode.ToggleSelection"
+                CheckMark="false" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small">
+        @foreach (var tag in Store.Tags)
+        {
+            <MudChip Value="tag">#@tag</MudChip>
+        }
+    </MudChipSet>
+    <MudSpacer />
+    <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search" Clearable="true" Margin="Margin.Dense"
+                  Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="toolbar-field" />
+</div>
+
+@if (!Visible.Any())
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Large" />
+        <MudText Typo="Typo.body1">@(Store.All.Count == 0 ? "No ideas yet. The next one goes here." : "No ideas match.")</MudText>
+    </div>
+}
+<div class="idea-grid">
+    @foreach (var idea in Visible)
+    {
+        <MudPaper @key="idea.Id" Outlined="true" Class="idea-card">
+            <div class="idea-text" @onclick="() => Edit(idea)">@idea.Text</div>
+            <div class="idea-foot">
+                @foreach (var tag in idea.Tags)
+                {
+                    <span class="idea-tag" @onclick="() => _tag = tag">#@tag</span>
+                }
+                <MudSpacer />
+                <span class="muted">@When.Short(idea.CreatedAt)</span>
+                <MudMenu Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Dense="true" aria-label="Idea actions">
+                    <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Edit(idea)">Edit</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Outlined.TaskAlt" OnClick="() => MakeTask(idea)">Make a task from this</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Delete(idea)">Delete</MudMenuItem>
+                </MudMenu>
+            </div>
+        </MudPaper>
+    }
+</div>
+
+@code {
+    private string _draft = "";
+    private string? _tag;
+    private string? _search;
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private IEnumerable<Idea> Visible => Store.All
+        .Where(i => _tag is null || i.Tags.Contains(_tag))
+        .Where(i => string.IsNullOrWhiteSpace(_search) || i.ToEditableText().Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(i => i.CreatedAt);
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_draft)) return;
+        Store.Upsert(Idea.Parse(_draft));
+        _draft = "";
+    }
+
+    private async Task Edit(Idea idea)
+    {
+        var parameters = new DialogParameters<IdeaEditDialog> { { d => d.Text, idea.ToEditableText() } };
+        var dialog = await Dialogs.ShowAsync<IdeaEditDialog>("Edit idea", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
+
+        var parsed = Idea.Parse(text, idea.CreatedAt);
+        Store.Upsert(new Idea { Id = idea.Id, Text = parsed.Text, Tags = parsed.Tags, CreatedAt = idea.CreatedAt });
+    }
+
+    // The idea stays: one idea can spawn several tasks over time.
+    private Task MakeTask(Idea idea) =>
+        Tasks.EditAsync(new TaskItem { Title = idea.Text, Project = idea.Tags.FirstOrDefault() });
+
+    private void Delete(Idea idea)
+    {
+        Store.Remove(idea);
+        Snackbar.Add("Idea deleted", Severity.Normal, c =>
+        {
+            c.Action = "Undo";
+            c.ActionColor = Color.Primary;
+            c.OnClick = _ => { Store.Upsert(idea); return Task.CompletedTask; };
+        });
+    }
+}

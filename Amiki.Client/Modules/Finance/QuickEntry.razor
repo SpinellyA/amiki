@@ -1,0 +1,67 @@
+@*
+    One-row logging for the common case: pick direction, type the amount, press Enter.
+    Category and account remember the last choice, so repeat purchases are two keystrokes.
+*@
+@inject FinanceStore Store
+@inject FinanceActions Actions
+
+<MudPaper Outlined="true" Class="quick-tx">
+    <MudToggleGroup T="TxKind" Value="_kind" ValueChanged="SetKind" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="quick-tx-kind">
+        <MudToggleItem Value="TxKind.Expense" Text="Spent" />
+        <MudToggleItem Value="TxKind.Income" Text="Received" />
+    </MudToggleGroup>
+    <MudNumericField T="decimal?" @bind-Value="_amount" Immediate="true" Placeholder="0" Variant="Variant.Outlined" Margin="Margin.Dense"
+                     Adornment="Adornment.Start" AdornmentText="₱" Min="0" HideSpinButtons="true" OnKeyDown="OnKey"
+                     Class="quick-tx-amount" aria-label="Amount" />
+    <MudSelect T="string" @bind-Value="_category" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="Category">
+        @foreach (var c in Categories.Of(_kind))
+        {
+            <MudSelectItem Value="c.Name">
+                <MudIcon Icon="@c.Icon" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
+            </MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" @bind-Value="_account" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="Account">
+        @foreach (var a in Store.Accounts)
+        {
+            <MudSelectItem Value="a.Name">@a.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudTextField T="string" @bind-Value="_note" Immediate="true" Placeholder="Note (optional)" Variant="Variant.Outlined"
+                  Margin="Margin.Dense" OnKeyDown="OnKey" Class="quick-tx-note" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="!(_amount > 0)" OnClick="Add">Log</MudButton>
+</MudPaper>
+
+@code {
+    private TxKind _kind = TxKind.Expense;
+    private decimal? _amount;
+    private string _category = Categories.DefaultFor(TxKind.Expense);
+    private string _account = "Cash";
+    private string _note = "";
+
+    private void SetKind(TxKind kind)
+    {
+        _kind = kind;
+        _category = Categories.DefaultFor(kind);
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Add();
+    }
+
+    private void Add()
+    {
+        if (_amount is not { } amount || amount <= 0) return;
+        Actions.Log(new Transaction
+        {
+            Kind = _kind,
+            Amount = amount,
+            Category = _category,
+            Account = _account,
+            Note = string.IsNullOrWhiteSpace(_note) ? _category : _note.Trim(),
+        });
+        _amount = null;
+        _note = "";
+    }
+}

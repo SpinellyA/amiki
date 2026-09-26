@@ -1,0 +1,162 @@
+@page "/tasks"
+@implements IDisposable
+@inject TaskStore Store
+@inject TaskActions Actions
+
+<PageTitle>Tasks · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Tasks</MudText>
+        <MudText Typo="Typo.body2" Class="muted">@Store.All.Count(t => !t.IsDone) open · @Store.All.Count(t => t.IsOverdue) overdue</MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="TasksModule.Views" Current="tasks" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => Actions.EditAsync()">New task</MudButton>
+    </div>
+</div>
+
+<MudTextField T="string" @bind-Value="_quickAdd" Immediate="true" OnKeyDown="OnQuickAddKey"
+              Placeholder="@("Add a task… e.g. Finish lab report #cmsc128 !high @fri")"
+              Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Add" />
+<div class="quick-hint">
+    @if (Preview is { } p)
+    {
+        <span>Enter to add <b>@(p.Title.Length > 0 ? p.Title : "…")</b></span>
+        @if (p.Project is not null) { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">#@p.Project</MudChip> }
+        @if (p.Due is { } due) { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Outlined.Event">@TaskFormat.Due(due)</MudChip> }
+        @if (p.Priority != Priority.None) { <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="TaskFormat.PriorityColor(p.Priority)" Icon="@Icons.Material.Filled.Flag">@p.Priority</MudChip> }
+    }
+    else
+    {
+        <span><code>#project</code> <code>!high</code> <code>!med</code> <code>!low</code> <code>@@today</code> <code>@@tomorrow</code> <code>@@fri</code></span>
+    }
+</div>
+
+<div class="toolbar">
+    <MudChipSet T="TaskView" @bind-SelectedValue="_view" SelectionMode="SelectionMode.SingleSelection"
+                CheckMark="false" Color="Color.Primary" Variant="Variant.Text">
+        @foreach (var v in Enum.GetValues<TaskView>())
+        {
+            <MudChip Value="v">@v <span class="chip-count">@Count(v)</span></MudChip>
+        }
+    </MudChipSet>
+    <MudSpacer />
+    <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search" Clearable="true" Margin="Margin.Dense"
+                  Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="toolbar-field" />
+    <MudSelect T="string" @bind-Value="_project" Placeholder="All projects" Clearable="true" Margin="Margin.Dense"
+               Variant="Variant.Outlined" Class="toolbar-field">
+        @foreach (var p in Store.Projects)
+        {
+            <MudSelectItem Value="p">#@p</MudSelectItem>
+        }
+    </MudSelect>
+</div>
+
+@{ var groups = Groups().ToList(); }
+@if (groups.Count == 0)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Size="Size.Large" />
+        <MudText Typo="Typo.body1">@EmptyMessage</MudText>
+    </div>
+}
+@foreach (var group in groups)
+{
+    <div class="task-group">
+        <div class="group-head @(group.Danger ? "danger" : "")">
+            <span>@group.Title</span><span class="muted">@group.Items.Count</span>
+        </div>
+        <MudPaper Outlined="true" Class="task-list">
+            @foreach (var item in group.Items)
+            {
+                <TaskRow @key="item.Id" Item="item" OnEdit="i => Actions.EditAsync(i)" OnDelete="Actions.DeleteWithUndo" />
+            }
+        </MudPaper>
+    </div>
+}
+
+@code {
+    private enum TaskView { Today, Upcoming, All, Done }
+    private sealed record TaskGroup(string Title, List<TaskItem> Items, bool Danger = false);
+
+    private TaskView _view = TaskView.Today;
+    private string _quickAdd = "";
+    private string? _search;
+    private string? _project;
+
+    private TaskItem? Preview => string.IsNullOrWhiteSpace(_quickAdd) ? null : QuickAdd.Parse(_quickAdd);
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnQuickAddKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || Preview is not { Title.Length: > 0 } item) return;
+        Store.Upsert(item);
+        _quickAdd = "";
+    }
+
+    private IEnumerable<TaskItem> Filtered() => Store.All.Where(t =>
+        (_project is null || string.Equals(t.Project, _project, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrWhiteSpace(_search) || t.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                                            || (t.Notes?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    // Open views also keep tasks completed today (struck through, sorted last), so ticking one off
+    // doesn't make it vanish from under the cursor. Tomorrow they only show under Done.
+    private IEnumerable<TaskItem> InView(TaskView view) => Filtered().Where(view switch
+    {
+        TaskView.Today => t => (!t.IsDone || t.CompletedToday) && t.Due?.Date <= DateTime.Today,
+        TaskView.Upcoming => t => (!t.IsDone || t.CompletedToday) && t.Due?.Date > DateTime.Today,
+        TaskView.All => t => !t.IsDone || t.CompletedToday,
+        _ => t => t.IsDone,
+    });
+
+    private int Count(TaskView view) => view == TaskView.Done ? InView(view).Count() : InView(view).Count(t => !t.IsDone);
+
+    private static List<TaskItem> Sorted(IEnumerable<TaskItem> items) =>
+        items.OrderBy(t => t.IsDone).ThenByDescending(t => t.Priority).ThenBy(t => t.Due ?? DateTime.MaxValue).ThenBy(t => t.CreatedAt).ToList();
+
+    private IEnumerable<TaskGroup> Groups()
+    {
+        var items = InView(_view).ToList();
+        if (items.Count == 0) yield break;
+
+        switch (_view)
+        {
+            case TaskView.Today:
+                if (items.Where(t => t.IsOverdue).ToList() is { Count: > 0 } overdue)
+                    yield return new("Overdue", Sorted(overdue), Danger: true);
+                if (items.Where(t => t.IsDueToday).ToList() is { Count: > 0 } today)
+                    yield return new("Today", Sorted(today));
+                // Overdue tasks you just finished: no longer overdue, but still today's work.
+                if (items.Where(t => t.IsDone && !t.IsDueToday).ToList() is { Count: > 0 } caughtUp)
+                    yield return new("Caught up today", Sorted(caughtUp));
+                break;
+
+            case TaskView.Upcoming:
+                foreach (var day in items.GroupBy(t => t.Due!.Value.Date).OrderBy(g => g.Key))
+                    yield return new((day.Key - DateTime.Today).Days < 7 ? $"{TaskFormat.Due(day.Key)} · {day.Key:MMM d}" : $"{day.Key:dddd, MMM d}", Sorted(day));
+                break;
+
+            case TaskView.All:
+                foreach (var project in items.GroupBy(t => t.Project).OrderBy(g => g.Key is null).ThenBy(g => g.Key))
+                    yield return new(project.Key is null ? "No project" : $"#{project.Key}", Sorted(project));
+                break;
+
+            case TaskView.Done:
+                yield return new("Completed", items.OrderByDescending(t => t.CompletedAt).ToList());
+                break;
+        }
+    }
+
+    private string EmptyMessage => _view switch
+    {
+        TaskView.Today => "Nothing due today.",
+        TaskView.Upcoming => "Nothing scheduled ahead.",
+        TaskView.Done => "Nothing completed yet.",
+        _ => "No open tasks.",
+    };
+}

@@ -1,0 +1,29 @@
+@page "/"
+@inject IEnumerable<ModuleInfo> Modules
+
+<PageTitle>Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">@Greeting</MudText>
+        <MudText Typo="Typo.body2" Class="muted">@DateTime.Today.ToString("dddd, MMMM d, yyyy")</MudText>
+    </div>
+</div>
+
+<MudGrid Spacing="3">
+    @foreach (var widget in Modules.OrderBy(m => m.Order).SelectMany(m => m.Widgets ?? []))
+    {
+        <MudItem xs="12" md="widget.Span">
+            <DynamicComponent Type="widget.Component" />
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private static string Greeting => DateTime.Now.Hour switch
+    {
+        < 12 => "Good morning",
+        < 18 => "Good afternoon",
+        _ => "Good evening",
+    };
+}

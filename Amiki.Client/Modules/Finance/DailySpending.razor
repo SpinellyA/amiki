@@ -1,0 +1,43 @@
+@*
+    Spending per day across one month as columns. Only the biggest day is labelled; every
+    column has a hover tooltip with its exact value.
+*@
+
+<div class="day-cols" role="img" aria-label="@($"Daily spending, {Month:MMMM yyyy}. Biggest day {_peak:MMM d}, {Money.Format(_peakValue)}.")">
+    @foreach (var (day, amount) in _days)
+    {
+        <div class="day-col @(day == DateTime.Today ? "today" : "") @(day > DateTime.Today ? "future" : "")"
+             title="@($"{day:ddd, MMM d}: {(amount == 0 ? "no spending" : Money.Format(amount))}")">
+            @if (amount > 0 && day == _peak)
+            {
+                <span class="day-peak">@Money.Compact(amount)</span>
+            }
+            <span class="day-bar" style="height: @(_peakValue == 0 ? "0" : (amount / _peakValue * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></span>
+        </div>
+    }
+</div>
+<div class="day-axis">
+    <span>@_days.First().Day.ToString("MMM d")</span>
+    <span>@_days.Last().Day.ToString("MMM d")</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DateTime Month { get; set; }
+    [Parameter, EditorRequired] public IEnumerable<Transaction> Transactions { get; set; } = [];
+
+    private List<(DateTime Day, decimal Amount)> _days = [];
+    private DateTime _peak;
+    private decimal _peakValue;
+
+    protected override void OnParametersSet()
+    {
+        var first = new DateTime(Month.Year, Month.Month, 1);
+        var byDay = Transactions.Where(t => t.Kind == TxKind.Expense)
+            .GroupBy(t => t.Date.Date).ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
+        _days = Enumerable.Range(0, DateTime.DaysInMonth(first.Year, first.Month))
+            .Select(i => first.AddDays(i))
+            .Select(d => (d, byDay.GetValueOrDefault(d)))
+            .ToList();
+        (_peak, _peakValue) = _days.MaxBy(d => d.Amount);
+    }
+}

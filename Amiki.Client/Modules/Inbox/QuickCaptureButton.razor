@@ -1,0 +1,30 @@
+@*
+    Floating "+" on every page: jot something into the Inbox without leaving what you're doing.
+    Hidden on the Inbox page itself, which already has a capture field at the top.
+*@
+@implements IDisposable
+@inject NavigationManager Nav
+@inject IDialogService Dialogs
+
+@if (!OnInboxPage)
+{
+    <MudTooltip Text="Quick capture to Inbox" Placement="Placement.Left" RootClass="quick-capture">
+        <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" aria-label="Quick capture to Inbox" OnClick="Open" />
+    </MudTooltip>
+}
+
+@code {
+    private bool OnInboxPage => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].TrimEnd('/') == "inbox";
+
+    protected override void OnInitialized() => Nav.LocationChanged += OnLocationChanged;
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    private Task Open() => Dialogs.ShowAsync<QuickCaptureDialog>("Quick capture", new DialogOptions
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true,
+        Position = DialogPosition.TopCenter,
+    });
+}

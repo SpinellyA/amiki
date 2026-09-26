@@ -1,0 +1,145 @@
+@page "/money"
+@implements IDisposable
+@inject FinanceStore Store
+@inject FinanceActions Actions
+
+<PageTitle>Money · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.body2" Class="muted">Total balance</MudText>
+        <div class="hero-figure">@(Store.TotalBalance < 0 ? "−" : "")@Money.Format(Store.TotalBalance)</div>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="FinanceModule.Views" Current="money" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => Actions.EditAsync()">Add with details</MudButton>
+    </div>
+</div>
+
+<div class="accounts">
+    @foreach (var account in Store.Accounts)
+    {
+        <MudPaper Outlined="true" Class="account-card">
+            <span class="stat-label">@account.Name</span>
+            <span class="account-value">@(Store.Balance(account.Name) < 0 ? "−" : "")@Money.Format(Store.Balance(account.Name))</span>
+        </MudPaper>
+    }
+</div>
+
+<QuickEntry />
+
+<div class="month-bar">
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Previous month"
+                   OnClick="() => ChangeMonth(-1)" />
+    <span class="cal-title">@_month.ToString("MMMM yyyy")</span>
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Next month"
+                   OnClick="() => ChangeMonth(1)" Disabled="_month >= ThisMonth" />
+</div>
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="7">
+        <MudStack Spacing="3">
+            <MudPaper Outlined="true" Class="widget">
+                <div class="stat-row pt-0">
+                    <div class="stat"><span class="stat-value">@Money.Format(_spent)</span><span class="stat-label">spent</span></div>
+                    <div class="stat"><span class="stat-value">@Money.Format(_received)</span><span class="stat-label">received</span></div>
+                    <div class="stat">
+                        <span class="stat-value">@Money.Signed(_received - _spent)</span>
+                        <span class="stat-label">@(_received >= _spent ? "saved" : "overspent")</span>
+                    </div>
+                </div>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="widget">
+                <div class="widget-head">
+                    <MudIcon Icon="@Icons.Material.Outlined.DonutSmall" Size="Size.Small" />
+                    <span>Where it went</span>
+                    <MudSpacer />
+                    <span class="muted widget-hint">Click a category to filter</span>
+                </div>
+                <div class="px-4 pt-3 pb-2">
+                    <CategoryBars Transactions="_monthTx" @bind-Selected="_category" />
+                </div>
+            </MudPaper>
+
+            <MudPaper Outlined="true" Class="widget">
+                <div class="widget-head">
+                    <MudIcon Icon="@Icons.Material.Outlined.BarChart" Size="Size.Small" />
+                    <span>Spending per day</span>
+                </div>
+                <div class="px-4 pt-3 pb-2">
+                    <DailySpending Month="_month" Transactions="_monthTx" />
+                </div>
+            </MudPaper>
+        </MudStack>
+    </MudItem>
+
+    <MudItem xs="12" md="5">
+        <MudPaper Outlined="true" Class="widget">
+            <div class="widget-head">
+                <MudIcon Icon="@Icons.Material.Outlined.ReceiptLong" Size="Size.Small" />
+                <span>Transactions</span>
+                <MudSpacer />
+                @if (_category is not null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                             OnClose="() => _category = null">@_category</MudChip>
+                }
+            </div>
+            @{ var shown = _monthTx.Where(t => _category is null || t.Category == _category).ToList(); }
+            @if (shown.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="muted px-4 py-3">Nothing logged in @_month.ToString("MMMM").</MudText>
+            }
+            @foreach (var day in shown.GroupBy(t => t.Date.Date).OrderByDescending(g => g.Key))
+            {
+                <div class="tx-day">
+                    <span>@When.Day(day.Key)</span>
+                    <span class="muted">@Money.Signed(day.Sum(t => t.Signed))</span>
+                </div>
+                @foreach (var tx in day.OrderByDescending(t => t.CreatedAt))
+                {
+                    <TransactionRow @key="tx.Id" Item="tx" OnEdit="t => Actions.EditAsync(t)" OnDelete="Actions.DeleteWithUndo" />
+                }
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static DateTime ThisMonth => new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    private DateTime _month = ThisMonth;
+    private string? _category;
+    private List<Transaction> _monthTx = [];
+    private decimal _spent, _received;
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Refresh();
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged()
+    {
+        Refresh();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ChangeMonth(int delta)
+    {
+        _month = _month.AddMonths(delta);
+        _category = null;
+        Refresh();
+    }
+
+    private void Refresh()
+    {
+        _monthTx = Store.InMonth(_month).ToList();
+        _spent = _monthTx.Where(t => t.Kind == TxKind.Expense).Sum(t => t.Amount);
+        _received = _monthTx.Where(t => t.Kind == TxKind.Income).Sum(t => t.Amount);
+    }
+}

@@ -1,0 +1,56 @@
+@inject FinanceStore Store
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudToggleGroup T="TxKind" Value="Item.Kind" ValueChanged="SetKind" Color="Color.Primary" Outlined="true" FixedContent="true">
+                <MudToggleItem Value="TxKind.Expense" Text="Expense" />
+                <MudToggleItem Value="TxKind.Income" Text="Income" />
+            </MudToggleGroup>
+            <MudNumericField T="decimal" @bind-Value="Item.Amount" Label="Amount" Variant="Variant.Outlined"
+                             Adornment="Adornment.Start" AdornmentText="₱" Min="0" Format="#,0.##" HideSpinButtons="true" AutoFocus="true" />
+            <MudTextField T="string" @bind-Value="Item.Note" Label="Note" Variant="Variant.Outlined" />
+            <MudStack Row="true" Spacing="3">
+                <MudSelect T="string" @bind-Value="Item.Category" Label="Category" Variant="Variant.Outlined">
+                    @foreach (var c in Categories.Of(Item.Kind))
+                    {
+                        <MudSelectItem Value="c.Name">
+                            <MudIcon Icon="@c.Icon" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" @bind-Value="Item.Account" Label="Account" Variant="Variant.Outlined">
+                    @foreach (var a in Store.Accounts)
+                    {
+                        <MudSelectItem Value="a.Name">@a.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+            <MudDatePicker @bind-Date="Date" Label="Date" Variant="Variant.Outlined" DateFormat="ddd, MMM d, yyyy" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Item.Amount <= 0"
+                   OnClick="() => Dialog.Close(DialogResult.Ok(Item))">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public Transaction Item { get; set; } = new();
+
+    private DateTime? Date
+    {
+        get => Item.Date;
+        set => Item.Date = value?.Date ?? DateTime.Today;
+    }
+
+    // Switching direction resets a category that belongs to the other direction.
+    private void SetKind(TxKind kind)
+    {
+        Item.Kind = kind;
+        if (Categories.Get(Item.Category).Kind != kind)
+            Item.Category = Categories.DefaultFor(kind);
+    }
+}

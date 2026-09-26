@@ -1,0 +1,21 @@
+<div class="tx-row">
+    <span class="tx-icon @(Item.Kind == TxKind.Income ? "income" : "")">
+        <MudIcon Icon="@Categories.Get(Item.Category).Icon" Size="Size.Small" />
+    </span>
+    <div class="task-main" @onclick="() => OnEdit.InvokeAsync(Item)">
+        <div class="task-title">@Item.Note</div>
+        <div class="task-meta"><span>@Item.Category</span><span>@Item.Account</span></div>
+    </div>
+    <span class="tx-amount @(Item.Kind == TxKind.Income ? "income" : "")">@Money.Signed(Item.Signed)</span>
+    @if (OnDelete.HasDelegate)
+    {
+        <MudIconButton Class="task-delete" Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small"
+                       aria-label="Delete transaction" OnClick="() => OnDelete.InvokeAsync(Item)" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Transaction Item { get; set; } = default!;
+    [Parameter] public EventCallback<Transaction> OnEdit { get; set; }
+    [Parameter] public EventCallback<Transaction> OnDelete { get; set; }
+}

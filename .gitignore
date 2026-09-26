@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+
+# Local-only secrets: copy the matching .example file to create them.
+.env
+Amiki.Api/appsettings.Development.json
+
+# Editor/assistant settings
+.claude/

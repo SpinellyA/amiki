@@ -1,0 +1,45 @@
+@page "/inbox"
+@implements IDisposable
+@inject InboxStore Store
+
+<PageTitle>Inbox · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Inbox</MudText>
+        <MudText Typo="Typo.body2" Class="muted">
+            @(Store.All.Count == 0 ? "All sorted." : $"{Store.All.Count} to sort")
+        </MudText>
+    </div>
+</div>
+
+<CaptureField AutoFocus="true" />
+<div class="quick-hint">
+    <span>Make it a task and <code>#project</code> <code>!high</code> <code>@@fri</code> carry over.</span>
+</div>
+
+@if (Store.All.Count == 0)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.Inbox" Size="Size.Large" />
+        <MudText Typo="Typo.body1">Inbox zero.</MudText>
+    </div>
+}
+@foreach (var day in Store.Newest.GroupBy(i => i.CapturedAt.Date))
+{
+    <div class="task-group mt-4">
+        <div class="group-head"><span>@When.Day(day.Key)</span><span class="muted">@day.Count()</span></div>
+        <MudPaper Outlined="true" Class="task-list">
+            @foreach (var item in day)
+            {
+                <InboxRow @key="item.Id" Item="item" />
+            }
+        </MudPaper>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

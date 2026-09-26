@@ -1,0 +1,172 @@
+@page "/tasks/calendar"
+@implements IDisposable
+@inject TaskStore Store
+@inject TaskActions Actions
+
+<PageTitle>Calendar · Tasks · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Tasks</MudText>
+        <MudText Typo="Typo.body2" Class="muted">
+            @ScheduledThisMonth scheduled in @_month.ToString("MMMM") · @Unscheduled.Count(t => !t.IsDone) unscheduled
+        </MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="TasksModule.Views" Current="tasks/calendar" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => Actions.EditAsync(new TaskItem { Due = _selected })">New task</MudButton>
+    </div>
+</div>
+
+<div class="cal-layout">
+    <MudPaper Outlined="true" Class="cal-card">
+        <div class="cal-toolbar">
+            <span class="cal-title">@_month.ToString("MMMM yyyy")</span>
+            <MudSpacer />
+            <MudSwitch T="bool" @bind-Value="_showDone" Label="Completed" Color="Color.Primary" Size="Size.Small" Class="mr-2" />
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="GoToToday">Today</MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Previous month"
+                           OnClick="() => _month = _month.AddMonths(-1)" />
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Next month"
+                           OnClick="() => _month = _month.AddMonths(1)" />
+        </div>
+
+        <MonthCalendar TItem="TaskItem" Month="_month" Items="CalendarItems" DateOf="t => t.Due"
+                       SelectedDate="_selected" SelectedDateChanged="Select"
+                       IsDragging="_dragging is not null" OnDrop="day => Reschedule(day)">
+            <ItemTemplate Context="task">
+                <div class="cal-chip @ChipClass(task)" draggable="true" title="@task.Title"
+                     @ondragstart="() => _dragging = task" @ondragend="() => _dragging = null"
+                     @onclick="() => Actions.EditAsync(task)" @onclick:stopPropagation="true">@task.Title</div>
+            </ItemTemplate>
+        </MonthCalendar>
+    </MudPaper>
+
+    <div class="cal-side">
+        <MudPaper Outlined="true" Class="widget">
+            <div class="widget-head">
+                <MudIcon Icon="@Icons.Material.Outlined.Event" Size="Size.Small" />
+                <span>@SelectedLabel</span>
+                <MudSpacer />
+                <span class="muted">@DayTasks.Count</span>
+            </div>
+            <div class="px-3 pt-2 pb-3">
+                <MudTextField T="string" @bind-Value="_quickAdd" Immediate="true" OnKeyDown="OnQuickAddKey"
+                              Placeholder="@($"Add to {_selected:ddd, MMM d}…")" Margin="Margin.Dense"
+                              Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Add" />
+            </div>
+            @if (DayTasks.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="muted px-4 pb-3">Nothing on this day.</MudText>
+            }
+            else
+            {
+                <div class="task-list">
+                    @foreach (var task in DayTasks)
+                    {
+                        <div @key="task.Id" draggable="true" @ondragstart="() => _dragging = task" @ondragend="() => _dragging = null">
+                            <TaskRow Item="task" OnEdit="t => Actions.EditAsync(t)" OnDelete="Actions.DeleteWithUndo" />
+                        </div>
+                    }
+                </div>
+            }
+        </MudPaper>
+
+        <MudPaper Outlined="true" Class="@("widget unscheduled" + (_dragging?.Due is not null ? " drop-ready" : ""))"
+                  @ondragover:preventDefault="true" @ondrop="() => Reschedule(null)">
+            <div class="widget-head">
+                <MudIcon Icon="@Icons.Material.Outlined.Inbox" Size="Size.Small" />
+                <span>Unscheduled</span>
+                <MudSpacer />
+                <span class="muted">@Unscheduled.Count(t => !t.IsDone)</span>
+            </div>
+            <MudText Typo="Typo.caption" Class="muted px-4 d-block pb-2">
+                Drag onto a day to schedule. Drop a task here to clear its date.
+            </MudText>
+            @if (Unscheduled.Any())
+            {
+                <div class="task-list">
+                    @foreach (var task in Unscheduled)
+                    {
+                        <div @key="task.Id" draggable="true" class="draggable-row"
+                             @ondragstart="() => _dragging = task" @ondragend="() => _dragging = null">
+                            <TaskRow Item="task" OnEdit="t => Actions.EditAsync(t)" OnDelete="Actions.DeleteWithUndo" />
+                        </div>
+                    }
+                </div>
+            }
+        </MudPaper>
+    </div>
+</div>
+
+@code {
+    private DateTime _month = DateTime.Today;
+    private DateTime _selected = DateTime.Today;
+    private bool _showDone;
+    private string _quickAdd = "";
+    private TaskItem? _dragging;
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private IEnumerable<TaskItem> CalendarItems =>
+        Store.All.Where(t => t.Due is not null && (_showDone || !t.IsDone))
+                 .OrderBy(t => t.IsDone).ThenByDescending(t => t.Priority);
+
+    // Tasks completed today stay listed (struck through, at the bottom) so ticking one off doesn't make it vanish.
+    private IEnumerable<TaskItem> Unscheduled =>
+        Store.All.Where(t => t.Due is null && (!t.IsDone || t.CompletedToday))
+                 .OrderBy(t => t.IsDone).ThenByDescending(t => t.Priority);
+
+    private List<TaskItem> DayTasks =>
+        Store.All.Where(t => t.Due?.Date == _selected).OrderBy(t => t.IsDone).ThenByDescending(t => t.Priority).ToList();
+
+    private int ScheduledThisMonth =>
+        Store.All.Count(t => !t.IsDone && t.Due is { } d && d.Year == _month.Year && d.Month == _month.Month);
+
+    private string SelectedLabel => (_selected - DateTime.Today).Days switch
+    {
+        0 => $"Today · {_selected:MMM d}",
+        1 => $"Tomorrow · {_selected:MMM d}",
+        _ => _selected.ToString("dddd, MMM d"),
+    };
+
+    private static string ChipClass(TaskItem t) =>
+        $"p-{t.Priority.ToString().ToLowerInvariant()}{(t.IsDone ? " done" : "")}{(t.IsOverdue ? " overdue" : "")}";
+
+    private void Select(DateTime day)
+    {
+        _selected = day;
+        // Clicking a greyed-out day from the next/previous month moves there.
+        if (day.Month != _month.Month || day.Year != _month.Year) _month = day;
+    }
+
+    private void GoToToday()
+    {
+        _month = DateTime.Today;
+        _selected = DateTime.Today;
+    }
+
+    private void Reschedule(DateTime? day)
+    {
+        if (_dragging is not { } task) return;
+        _dragging = null;
+        if (task.Due?.Date == day) return;
+
+        var moved = task.Clone();
+        moved.Due = day;
+        Store.Upsert(moved);
+    }
+
+    private void OnQuickAddKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_quickAdd)) return;
+        var item = QuickAdd.Parse(_quickAdd);
+        if (item.Title.Length == 0) return;
+        item.Due ??= _selected;
+        Store.Upsert(item);
+        _quickAdd = "";
+    }
+}

@@ -1,0 +1,28 @@
+@implements IDisposable
+@inject FinanceStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" Size="Size.Small" />
+        <span>Money</span>
+        <MudSpacer />
+        <MudLink Href="money" Typo="Typo.body2">Details →</MudLink>
+    </div>
+    @{
+        var month = Store.InMonth(DateTime.Today).ToList();
+        var spent = month.Where(t => t.Kind == TxKind.Expense).Sum(t => t.Amount);
+    }
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@Money.Format(Store.TotalBalance)</span><span class="stat-label">balance</span></div>
+        <div class="stat"><span class="stat-value">@Money.Format(spent)</span><span class="stat-label">spent in @DateTime.Today.ToString("MMMM")</span></div>
+    </div>
+    <div class="px-4 pb-2">
+        <CategoryBars Transactions="month" Max="4" />
+    </div>
+</MudPaper>
+
+@code {
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

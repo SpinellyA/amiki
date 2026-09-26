@@ -1,0 +1,25 @@
+@inject InboxStore Store
+
+<MudTextField T="string" @bind-Value="_text" Immediate="true" OnKeyDown="OnKey" AutoFocus="AutoFocus"
+              Placeholder="Jot anything. Sort it later." Variant="Variant.Outlined" Margin="Margin"
+              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Send"
+              OnAdornmentClick="Save" AdornmentAriaLabel="Save to inbox" />
+
+@code {
+    [Parameter] public bool AutoFocus { get; set; }
+    [Parameter] public Margin Margin { get; set; } = Margin.Normal;
+
+    private string _text = "";
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Save();
+    }
+
+    // The send button matters on phones, where Enter on a soft keyboard is easy to miss.
+    private void Save()
+    {
+        Store.Capture(_text);
+        _text = "";
+    }
+}

@@ -1,0 +1,61 @@
+@implements IDisposable
+@inject TaskStore Store
+@inject TaskActions Actions
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Size="Size.Small" />
+        <span>Due today</span>
+        <MudSpacer />
+        <MudLink Href="tasks" Typo="Typo.body2">All tasks →</MudLink>
+    </div>
+
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@_today.Count(t => t.IsDueToday)</span><span class="stat-label">today</span></div>
+        <div class="stat"><span class="stat-value @(_overdue > 0 ? "danger" : "")">@_overdue</span><span class="stat-label">overdue</span></div>
+        <div class="stat"><span class="stat-value">@Store.All.Count(t => !t.IsDone)</span><span class="stat-label">open</span></div>
+    </div>
+
+    @if (_today.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="muted pa-4">Nothing due. Clear skies.</MudText>
+    }
+    else
+    {
+        <div class="task-list">
+            @foreach (var item in _today)
+            {
+                <TaskRow @key="item.Id" Item="item" ShowDelete="false" OnEdit="i => Actions.EditAsync(i)" />
+            }
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private List<TaskItem> _today = [];
+    private int _overdue;
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Refresh();
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged()
+    {
+        Refresh();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Completed-today items stay listed (struck through) so ticking one off doesn't make it vanish mid-click.
+    private void Refresh()
+    {
+        _overdue = Store.All.Count(t => t.IsOverdue);
+        _today = Store.All
+            .Where(t => t.IsOverdue || (t.IsDueToday && (!t.IsDone || t.CompletedAt?.Date == DateTime.Today)))
+            .OrderBy(t => t.IsDone).ThenByDescending(t => t.Priority).ThenBy(t => t.Due)
+            .ToList();
+    }
+}

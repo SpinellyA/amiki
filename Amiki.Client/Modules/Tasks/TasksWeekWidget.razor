@@ -1,0 +1,62 @@
+@implements IDisposable
+@inject TaskStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Insights" Size="Size.Small" />
+        <span>Completed, last 7 days</span>
+    </div>
+
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@_days.Sum(d => d.Count)</span><span class="stat-label">this week</span></div>
+        <div class="stat"><span class="stat-value">@Streak</span><span class="stat-label">day streak</span></div>
+    </div>
+
+    <div class="bars">
+        @foreach (var (day, count) in _days)
+        {
+            <div class="bar-col" title="@($"{day:ddd MMM d}: {count}")">
+                <span class="bar-count">@(count > 0 ? count : "")</span>
+                <div class="bar @(day == DateTime.Today ? "today" : "")" style="height: @(Max == 0 ? 0 : count * 100 / Max)%"></div>
+                <span class="bar-label">@day.ToString("ddd")[..2]</span>
+            </div>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    private List<(DateTime Day, int Count)> _days = [];
+    private int Max => _days.Max(d => d.Count);
+
+    // Consecutive days with at least one completion, ending today (or yesterday, so the streak
+    // isn't "broken" at 8am before you've done anything).
+    private int Streak => _days.AsEnumerable().Reverse()
+        .SkipWhile(d => d.Day == DateTime.Today && d.Count == 0)
+        .TakeWhile(d => d.Count > 0)
+        .Count();
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Refresh();
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged()
+    {
+        Refresh();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Refresh()
+    {
+        var byDay = Store.All.Where(t => t.CompletedAt is not null)
+            .GroupBy(t => t.CompletedAt!.Value.Date)
+            .ToDictionary(g => g.Key, g => g.Count());
+        _days = Enumerable.Range(0, 7)
+            .Select(i => DateTime.Today.AddDays(i - 6))
+            .Select(d => (d, byDay.GetValueOrDefault(d)))
+            .ToList();
+    }
+}

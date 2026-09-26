@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.vs/
+.git/
+.claude/
+*.user
+# Local-only: dev database password and compose setup never go into the image.
+**/appsettings.Development.json
+.env
+docker-compose.yml
+Dockerfile
+.dockerignore

@@ -1,0 +1,103 @@
+@*
+    Month grid for anything that lands on a date. Knows nothing about tasks: the page supplies
+    items, how to get each item's date, and how to render one. A future Calendar module that
+    merges tasks, classes, and bills reuses this as-is.
+
+    Dragging is owned by the page (so items can also be dragged in from outside the grid);
+    the grid only reports which day something was dropped on.
+*@
+@typeparam TItem
+
+<div class="cal">
+    <div class="cal-weekdays">
+        @foreach (var name in WeekdayNames)
+        {
+            <div>@name</div>
+        }
+    </div>
+    <div class="cal-grid">
+        @foreach (var day in Days())
+        {
+            var items = _byDay.GetValueOrDefault(day) ?? [];
+            <div class="@CellClass(day)" role="button" tabindex="0" aria-label="@($"{day:dddd, MMMM d}, {items.Count} items")"
+                 @onclick="() => SelectedDateChanged.InvokeAsync(day)"
+                 @onkeydown="e => OnKey(e, day)"
+                 @ondragenter="() => _dropTarget = day"
+                 @ondragover:preventDefault="true"
+                 @ondrop="() => Drop(day)">
+                <div class="cal-day-num">@day.Day</div>
+                <div class="cal-items">
+                    @foreach (var item in items.Take(MaxPerDay))
+                    {
+                        @ItemTemplate(item)
+                    }
+                    @if (items.Count > MaxPerDay)
+                    {
+                        <div class="cal-more">+@(items.Count - MaxPerDay) more</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly string[] WeekdayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    /// <summary>Any date inside the month to show.</summary>
+    [Parameter, EditorRequired] public DateTime Month { get; set; }
+    [Parameter, EditorRequired] public IEnumerable<TItem> Items { get; set; } = [];
+    [Parameter, EditorRequired] public Func<TItem, DateTime?> DateOf { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment<TItem> ItemTemplate { get; set; } = default!;
+    [Parameter] public DateTime? SelectedDate { get; set; }
+    [Parameter] public EventCallback<DateTime> SelectedDateChanged { get; set; }
+    [Parameter] public EventCallback<DateTime> OnDrop { get; set; }
+    [Parameter] public bool IsDragging { get; set; }
+    [Parameter] public int MaxPerDay { get; set; } = 3;
+
+    private Dictionary<DateTime, List<TItem>> _byDay = [];
+    private DateTime? _dropTarget;
+
+    private DateTime FirstOfMonth => new(Month.Year, Month.Month, 1);
+
+    protected override void OnParametersSet()
+    {
+        _byDay = Items
+            .Select(item => (item, date: DateOf(item)))
+            .Where(x => x.date is not null)
+            .GroupBy(x => x.date!.Value.Date, x => x.item)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        if (!IsDragging) _dropTarget = null;
+    }
+
+    // Whole weeks covering the month: 5 rows usually, 4 or 6 when the month demands it.
+    private IEnumerable<DateTime> Days()
+    {
+        var first = FirstOfMonth;
+        var lead = (int)first.DayOfWeek;
+        var weeks = (int)Math.Ceiling((lead + DateTime.DaysInMonth(first.Year, first.Month)) / 7.0);
+        var start = first.AddDays(-lead);
+        return Enumerable.Range(0, weeks * 7).Select(i => start.AddDays(i));
+    }
+
+    private string CellClass(DateTime day)
+    {
+        var css = "cal-day";
+        if (day.Month != FirstOfMonth.Month) css += " outside";
+        if (day == DateTime.Today) css += " today";
+        if (day == SelectedDate?.Date) css += " selected";
+        if (IsDragging && day == _dropTarget) css += " drop-target";
+        return css;
+    }
+
+    private async Task Drop(DateTime day)
+    {
+        _dropTarget = null;
+        await OnDrop.InvokeAsync(day);
+    }
+
+    private async Task OnKey(KeyboardEventArgs e, DateTime day)
+    {
+        if (e.Key is "Enter" or " ") await SelectedDateChanged.InvokeAsync(day);
+    }
+}

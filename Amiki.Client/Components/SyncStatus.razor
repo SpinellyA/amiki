@@ -1,0 +1,69 @@
+@*
+    Small cloud in the app bar: whether your changes have reached the server. Matters most on
+    the phone, where "offline, 3 changes waiting" is the difference between trusting a capture
+    and wondering if it went through. Also turns server rejections into a visible message.
+*@
+@using Amiki.Data
+@implements IDisposable
+@inject SyncQueue Queue
+@inject Session Session
+@inject ISnackbar Snackbar
+
+<MudTooltip Text="@Label">
+    @if (State == "signedout")
+    {
+        <button type="button" class="sync-status signedout" aria-label="@Label" @onclick="Session.SignIn">
+            <MudIcon Icon="@Icons.Material.Outlined.Login" Size="Size.Small" />
+            <span class="sync-count">Sign in</span>
+        </button>
+    }
+    else
+    {
+        <span class="sync-status @State" role="status" aria-label="@Label">
+            <MudIcon Icon="@Icon" Size="Size.Small" />
+            @if (Queue.Pending > 0)
+            {
+                <span class="sync-count">@Queue.Pending</span>
+            }
+        </span>
+    }
+</MudTooltip>
+
+@code {
+    private string State =>
+        Queue.NeedsSignIn ? "signedout" : Queue.Offline ? "offline" : Queue.Pending > 0 ? "saving" : "saved";
+
+    private string Icon => State switch
+    {
+        "offline" => Icons.Material.Outlined.CloudOff,
+        "saving" => Icons.Material.Outlined.CloudUpload,
+        _ => Icons.Material.Outlined.CloudDone,
+    };
+
+    private string Waiting => $"{Queue.Pending} change{(Queue.Pending == 1 ? "" : "s")} waiting";
+
+    private string Label => State switch
+    {
+        "signedout" => $"You've been signed out. {Waiting}; sign in to save them.",
+        "offline" => $"Can't reach the server. {Waiting}; retrying.",
+        "saving" => "Saving…",
+        _ => "All changes saved",
+    };
+
+    protected override void OnInitialized()
+    {
+        Queue.Changed += OnChanged;
+        Queue.Rejected += OnRejected;
+    }
+
+    public void Dispose()
+    {
+        Queue.Changed -= OnChanged;
+        Queue.Rejected -= OnRejected;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnRejected(string reason) =>
+        InvokeAsync(() => Snackbar.Add($"Not saved: {reason}", Severity.Warning));
+}

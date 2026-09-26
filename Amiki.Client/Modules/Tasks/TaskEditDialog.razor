@@ -1,0 +1,40 @@
+@inject TaskStore Store
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="Item.Title" Label="Title" Variant="Variant.Outlined" AutoFocus="true" Required="true" />
+            <MudTextField @bind-Value="Item.Notes" Label="Notes" Variant="Variant.Outlined" Lines="3" />
+            <MudStack Row="true" Spacing="3">
+                <MudAutocomplete T="string" @bind-Value="Item.Project" Label="Project" Variant="Variant.Outlined"
+                                 SearchFunc="SearchProjects" CoerceValue="true" Clearable="true"
+                                 AdornmentIcon="@Icons.Material.Outlined.Tag" Adornment="Adornment.Start" />
+                <MudDatePicker @bind-Date="Item.Due" Label="Due" Variant="Variant.Outlined" Clearable="true"
+                               DateFormat="ddd, MMM d" />
+            </MudStack>
+            <MudSelect T="Priority" @bind-Value="Item.Priority" Label="Priority" Variant="Variant.Outlined">
+                @foreach (var p in Enum.GetValues<Priority>().Reverse())
+                {
+                    <MudSelectItem Value="p">
+                        <MudIcon Icon="@Icons.Material.Filled.Flag" Color="TaskFormat.PriorityColor(p)" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@p
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="string.IsNullOrWhiteSpace(Item.Title)"
+                   OnClick="() => Dialog.Close(DialogResult.Ok(Item))">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public TaskItem Item { get; set; } = new();
+
+    private Task<IEnumerable<string>> SearchProjects(string? text, CancellationToken _) =>
+        Task.FromResult(string.IsNullOrWhiteSpace(text)
+            ? Store.Projects
+            : Store.Projects.Where(p => p.Contains(text, StringComparison.OrdinalIgnoreCase)));
+}

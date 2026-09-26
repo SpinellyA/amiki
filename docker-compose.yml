@@ -1,0 +1,18 @@
+# Local development database only. Production (Neon) is configured through the
+# ConnectionStrings__Amiki environment variable. The password comes from .env (not committed);
+# copy .env.example to .env to set one up.
+services:
+  db:
+    image: postgres:17
+    container_name: amiki-db
+    environment:
+      POSTGRES_DB: amiki
+      POSTGRES_USER: amiki
+      POSTGRES_PASSWORD: ${AMIKI_DB_PASSWORD:?Set AMIKI_DB_PASSWORD in .env (see .env.example)}
+    ports:
+      # This computer only, not the whole network. 5433 so it doesn't clash with a Postgres on 5432.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - amiki-pgdata:/var/lib/postgresql/data
+volumes:
+  amiki-pgdata:

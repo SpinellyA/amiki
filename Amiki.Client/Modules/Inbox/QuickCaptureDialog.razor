@@ -1,0 +1,44 @@
+@inject InboxStore Store
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @* Saves on key-up, not key-down: closing on key-down hands focus back to the + button in
+           time for the same Enter press to click it and reopen an empty dialog. *@
+        <MudTextField T="string" @ref="_field" @bind-Value="_text" Immediate="true" OnKeyUp="OnKey"
+                      Placeholder="Jot anything. Sort it later." Variant="Variant.Outlined" aria-label="Note for your inbox" />
+        <MudText Typo="Typo.caption" Class="muted d-block mt-2">Enter to save · Esc to close</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="string.IsNullOrWhiteSpace(_text)" OnClick="Save">Save to Inbox</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+
+    private string _text = "";
+    private MudTextField<string>? _field;
+
+    // AutoFocus loses to the dialog's focus trap, so focus the field once the dialog has opened.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _field is null) return;
+        await Task.Delay(100);
+        await _field.FocusAsync();
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Save();
+    }
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(_text)) return;
+        Store.Capture(_text);
+        Snackbar.Add("Saved to Inbox", Severity.Success);
+        Dialog.Close();
+    }
+}

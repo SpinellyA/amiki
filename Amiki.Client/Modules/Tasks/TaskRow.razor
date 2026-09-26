@@ -1,0 +1,42 @@
+@inject TaskActions Actions
+
+<div class="task-row @(Item.IsDone ? "done" : "")">
+    <MudCheckBox T="bool" Value="Item.IsDone" ValueChanged="_ => Actions.Toggle(Item)"
+                 Color="Color.Primary" UncheckedColor="TaskFormat.PriorityColor(Item.Priority)" Size="Size.Small" />
+
+    <div class="task-main" @onclick="() => OnEdit.InvokeAsync(Item)">
+        <div class="task-title">@Item.Title</div>
+        @if (Item.Due is not null || Item.Project is not null || !string.IsNullOrWhiteSpace(Item.Notes))
+        {
+            <div class="task-meta">
+                @if (Item.Due is { } due && !Item.IsDone)
+                {
+                    <span class="@(Item.IsOverdue ? "overdue" : Item.IsDueToday ? "today" : "")">
+                        <MudIcon Icon="@Icons.Material.Outlined.Event" Size="Size.Small" /> @TaskFormat.Due(due)
+                    </span>
+                }
+                @if (Item.Project is { } project)
+                {
+                    <span class="task-project">#@project</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Item.Notes))
+                {
+                    <MudIcon Icon="@Icons.Material.Outlined.Notes" Size="Size.Small" />
+                }
+            </div>
+        }
+    </div>
+
+    @if (ShowDelete)
+    {
+        <MudIconButton Class="task-delete" Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small"
+                       aria-label="Delete task" OnClick="() => OnDelete.InvokeAsync(Item)" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TaskItem Item { get; set; } = default!;
+    [Parameter] public EventCallback<TaskItem> OnEdit { get; set; }
+    [Parameter] public EventCallback<TaskItem> OnDelete { get; set; }
+    [Parameter] public bool ShowDelete { get; set; } = true;
+}
