@@ -46,6 +46,37 @@ app.MapStaticAssets();
 
 app.MapAuthEndpoints(auth);
 
+// For uptime monitors (UptimeRobot) and Render's health check: proves the app and the database
+// both answer, which also keeps a free-tier service from spinning down. Public on purpose, and
+// says nothing about your data. HEAD is included because that's what uptime monitors send by default.
+// Its own unpooled connection with hard limits, so a database that accepts the connection but
+// never answers still fails fast (503) instead of hanging the monitor. 8s leaves room for Neon
+// waking a suspended database.
+var healthConnection = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
+{
+    Timeout = 8,
+    CommandTimeout = 8,
+    CancellationTimeout = 1000,
+    Pooling = false,
+}.ConnectionString;
+
+app.MapMethods("/health", ["GET", "HEAD"], async (HttpContext http) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    try
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(healthConnection);
+        await connection.OpenAsync();
+        await using var ping = new Npgsql.NpgsqlCommand("SELECT 1", connection);
+        await ping.ExecuteScalarAsync();
+        return Results.Ok(new { status = "ok" });
+    }
+    catch (Exception)
+    {
+        return Results.Json(new { status = "database unreachable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
+
 var api = app.MapGroup("/api");
 if (auth.Enabled) api.RequireAuthorization(OwnerAuth.Policy);
 
