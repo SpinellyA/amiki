@@ -1,0 +1,56 @@
+@*
+    One idea on the board: text, tags, the tasks made from it (tick them off right here), and a
+    menu to edit, make a task, move to another column, or delete. Drag it to move it too.
+*@
+@inject IdeaActions Actions
+@inject TaskStore Tasks
+@inject TaskActions TaskActions
+
+<MudPaper Outlined="true" Class="@($"idea-card {Item.Status.ToString().ToLowerInvariant()}")"
+          draggable="true" @ondragstart="() => OnDragStart.InvokeAsync(Item)" @ondragend="() => OnDragEnd.InvokeAsync()">
+    <div class="idea-text" @onclick="() => Actions.EditAsync(Item)">@Item.Text</div>
+
+    @if (Linked.Count > 0)
+    {
+        <div class="idea-tasks">
+            @foreach (var task in Linked)
+            {
+                <div class="idea-task @(task.IsDone ? "done" : "")">
+                    <MudCheckBox T="bool" Value="task.IsDone" ValueChanged="_ => TaskActions.Toggle(task)" Size="Size.Small"
+                                 Color="Color.Primary" aria-label="@($"Done: {task.Title}")" />
+                    <span class="idea-task-title" @onclick="() => TaskActions.EditAsync(task)">@task.Title</span>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="idea-foot">
+        @foreach (var tag in Item.Tags)
+        {
+            <span class="idea-tag" @onclick="() => OnTagClick.InvokeAsync(tag)">#@tag</span>
+        }
+        <MudSpacer />
+        <span class="muted">@When.Short(Item.CreatedAt)</span>
+        <MudMenu Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Dense="true" aria-label="Idea actions">
+            <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Actions.EditAsync(Item)">Edit</MudMenuItem>
+            <MudMenuItem Icon="@Icons.Material.Outlined.TaskAlt" OnClick="() => Actions.MakeTaskAsync(Item)">Make a task from this</MudMenuItem>
+            <MudDivider />
+            @foreach (var status in Enum.GetValues<IdeaStatus>().Where(s => s != Item.Status))
+            {
+                <MudMenuItem Icon="@IdeaStatusLook.Icon(status)" OnClick="() => Actions.Move(Item, status)">Move to @IdeaStatusLook.Name(status)</MudMenuItem>
+            }
+            <MudDivider />
+            <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Actions.Delete(Item)">Delete</MudMenuItem>
+        </MudMenu>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public Idea Item { get; set; } = default!;
+    [Parameter] public EventCallback<string> OnTagClick { get; set; }
+    [Parameter] public EventCallback<Idea> OnDragStart { get; set; }
+    [Parameter] public EventCallback OnDragEnd { get; set; }
+
+    // Open tasks first, then the finished ones.
+    private List<TaskItem> Linked => Tasks.ForIdea(Item.Id).OrderBy(t => t.IsDone).ThenBy(t => t.CreatedAt).ToList();
+}

@@ -13,6 +13,9 @@ public sealed class TaskStore(Api api, SyncQueue sync) : IRemoteStore
 
     public event Action? Changed;
 
+    /// <summary>Raised when you tick a task off or back on (other modules react, e.g. an idea finishing).</summary>
+    public event Action<TaskItem>? Toggled;
+
     public IReadOnlyList<TaskItem> All => _items;
 
     public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _items)];
@@ -42,7 +45,10 @@ public sealed class TaskStore(Api api, SyncQueue sync) : IRemoteStore
         item.CompletedAt = item.IsDone ? null : DateTime.Now;
         sync.Put(Path, item.Id, item);
         Changed?.Invoke();
+        Toggled?.Invoke(item);
     }
+
+    public IReadOnlyList<TaskItem> ForIdea(Guid ideaId) => _items.Where(t => t.IdeaId == ideaId).ToList();
 
     public void Delete(TaskItem item)
     {

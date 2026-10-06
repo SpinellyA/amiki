@@ -46,10 +46,15 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
         {
             task.ToTable("tasks");
             task.Property(t => t.Priority).HasConversion<string>().HasMaxLength(16);
+            task.HasIndex(t => t.IdeaId);
         });
 
         // Tags map to a Postgres text[] column.
-        model.Entity<Idea>().ToTable("ideas");
+        model.Entity<Idea>(idea =>
+        {
+            idea.ToTable("ideas");
+            idea.Property(i => i.Status).HasConversion<string>().HasMaxLength(16);
+        });
 
         model.Entity<Transaction>(tx =>
         {

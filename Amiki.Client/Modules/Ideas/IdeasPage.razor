@@ -1,16 +1,18 @@
 @page "/ideas"
 @implements IDisposable
 @inject IdeaStore Store
-@inject TaskActions Tasks
-@inject IDialogService Dialogs
-@inject ISnackbar Snackbar
+@inject TaskStore Tasks
+@inject IdeaActions Actions
 
 <PageTitle>Ideas · Amiki</PageTitle>
 
 <div class="page-head">
     <div>
         <MudText Typo="Typo.h4">Ideas</MudText>
-        <MudText Typo="Typo.body2" Class="muted">@Store.All.Count ideas · @Store.Tags.Count() tags</MudText>
+        <MudText Typo="Typo.body2" Class="muted">
+            @Count(IdeaStatus.Parked) parked · @Count(IdeaStatus.InProgress) in progress · @Count(IdeaStatus.Done) done.
+            Make a task from an idea to start it; finishing its tasks finishes the idea.
+        </MudText>
     </div>
 </div>
 
@@ -31,79 +33,94 @@
                   Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="toolbar-field" />
 </div>
 
-@if (!Visible.Any())
-{
-    <div class="empty">
-        <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Large" />
-        <MudText Typo="Typo.body1">@(Store.All.Count == 0 ? "No ideas yet. The next one goes here." : "No ideas match.")</MudText>
-    </div>
-}
-<div class="idea-grid">
-    @foreach (var idea in Visible)
+@* Phones show one column at a time; this picks which. Hidden on wider screens, where all three fit. *@
+<MudToggleGroup T="IdeaStatus" @bind-Value="_phoneColumn" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="idea-column-switch">
+    @foreach (var status in Columns)
     {
-        <MudPaper @key="idea.Id" Outlined="true" Class="idea-card">
-            <div class="idea-text" @onclick="() => Edit(idea)">@idea.Text</div>
-            <div class="idea-foot">
-                @foreach (var tag in idea.Tags)
-                {
-                    <span class="idea-tag" @onclick="() => _tag = tag">#@tag</span>
-                }
-                <MudSpacer />
-                <span class="muted">@When.Short(idea.CreatedAt)</span>
-                <MudMenu Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Dense="true" aria-label="Idea actions">
-                    <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Edit(idea)">Edit</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Outlined.TaskAlt" OnClick="() => MakeTask(idea)">Make a task from this</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Delete(idea)">Delete</MudMenuItem>
-                </MudMenu>
+        <MudToggleItem Value="status" Text="@($"{IdeaStatusLook.Name(status)} {Visible(status).Count()}")" />
+    }
+</MudToggleGroup>
+
+<div class="idea-board">
+    @foreach (var status in Columns)
+    {
+        var ideas = Visible(status).ToList();
+        <section class="@ColumnClass(status)" aria-label="@IdeaStatusLook.Name(status)"
+                 @ondragenter="() => _dropTarget = status" @ondragover:preventDefault="true" @ondrop="() => Drop(status)">
+            <div class="group-head idea-column-head">
+                <MudIcon Icon="@IdeaStatusLook.Icon(status)" Size="Size.Small" />
+                <span>@IdeaStatusLook.Name(status)</span>
+                <span class="muted">@ideas.Count</span>
             </div>
-        </MudPaper>
+            @if (ideas.Count == 0)
+            {
+                <div class="idea-column-empty muted">@EmptyText(status)</div>
+            }
+            @foreach (var idea in ideas)
+            {
+                <IdeaCard @key="idea.Id" Item="idea" OnTagClick="t => _tag = t"
+                          OnDragStart="i => _dragging = i" OnDragEnd="() => { _dragging = null; _dropTarget = null; }" />
+            }
+        </section>
     }
 </div>
 
 @code {
+    private static readonly IdeaStatus[] Columns = Enum.GetValues<IdeaStatus>();
+
     private string _draft = "";
     private string? _tag;
     private string? _search;
+    private IdeaStatus _phoneColumn = IdeaStatus.Parked;
+    private Idea? _dragging;
+    private IdeaStatus? _dropTarget;
 
-    protected override void OnInitialized() => Store.Changed += OnChanged;
-    public void Dispose() => Store.Changed -= OnChanged;
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Tasks.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Tasks.Changed -= OnChanged;
+    }
+
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    private IEnumerable<Idea> Visible => Store.All
+    private int Count(IdeaStatus status) => Store.All.Count(i => i.Status == status);
+
+    private IEnumerable<Idea> Visible(IdeaStatus status) => Store.All
+        .Where(i => i.Status == status)
         .Where(i => _tag is null || i.Tags.Contains(_tag))
         .Where(i => string.IsNullOrWhiteSpace(_search) || i.ToEditableText().Contains(_search, StringComparison.OrdinalIgnoreCase))
         .OrderByDescending(i => i.CreatedAt);
+
+    private string ColumnClass(IdeaStatus status) =>
+        "idea-column"
+        + (status == _phoneColumn ? " phone-shown" : "")
+        + (_dragging is not null && _dropTarget == status && _dragging.Status != status ? " drop-target" : "");
+
+    private static string EmptyText(IdeaStatus status) => status switch
+    {
+        IdeaStatus.Parked => "New ideas land here.",
+        IdeaStatus.InProgress => "Make a task from an idea, or drag one here.",
+        _ => "Finished ideas end up here.",
+    };
+
+    private void Drop(IdeaStatus status)
+    {
+        if (_dragging is { } idea && idea.Status != status) Actions.Move(idea, status);
+        _dragging = null;
+        _dropTarget = null;
+    }
 
     private void OnKey(KeyboardEventArgs e)
     {
         if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_draft)) return;
         Store.Upsert(Idea.Parse(_draft));
         _draft = "";
-    }
-
-    private async Task Edit(Idea idea)
-    {
-        var parameters = new DialogParameters<IdeaEditDialog> { { d => d.Text, idea.ToEditableText() } };
-        var dialog = await Dialogs.ShowAsync<IdeaEditDialog>("Edit idea", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
-        if (await dialog.Result is not { Canceled: false, Data: string text }) return;
-
-        var parsed = Idea.Parse(text, idea.CreatedAt);
-        Store.Upsert(new Idea { Id = idea.Id, Text = parsed.Text, Tags = parsed.Tags, CreatedAt = idea.CreatedAt });
-    }
-
-    // The idea stays: one idea can spawn several tasks over time.
-    private Task MakeTask(Idea idea) =>
-        Tasks.EditAsync(new TaskItem { Title = idea.Text, Project = idea.Tags.FirstOrDefault() });
-
-    private void Delete(Idea idea)
-    {
-        Store.Remove(idea);
-        Snackbar.Add("Idea deleted", Severity.Normal, c =>
-        {
-            c.Action = "Undo";
-            c.ActionColor = Color.Primary;
-            c.OnClick = _ => { Store.Upsert(idea); return Task.CompletedTask; };
-        });
+        _phoneColumn = IdeaStatus.Parked; // so you see it land
     }
 }

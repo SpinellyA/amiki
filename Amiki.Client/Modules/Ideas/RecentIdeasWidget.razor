@@ -16,6 +16,7 @@
                     <div class="inbox-text">@idea.Text</div>
                     <div class="task-meta">
                         <span>@When.Short(idea.CreatedAt)</span>
+                        <span><MudIcon Icon="@IdeaStatusLook.Icon(idea.Status)" Size="Size.Small" /> @IdeaStatusLook.Name(idea.Status)</span>
                         @foreach (var tag in idea.Tags)
                         {
                             <span>#@tag</span>

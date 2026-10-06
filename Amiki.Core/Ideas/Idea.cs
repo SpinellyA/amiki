@@ -1,4 +1,5 @@
 using Amiki.Core;
+using Amiki.Modules.Tasks;
 
 namespace Amiki.Modules.Ideas;
 
@@ -7,7 +8,21 @@ public sealed class Idea : IEntity
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Text { get; set; } = "";
     public List<string> Tags { get; set; } = [];
+    public IdeaStatus Status { get; set; } = IdeaStatus.Parked;
     public DateTime CreatedAt { get; init; } = DateTime.Now;
+
+    public Idea Clone() => new() { Id = Id, Text = Text, Tags = [.. Tags], Status = Status, CreatedAt = CreatedAt };
+
+    /// <summary>
+    /// Where an idea stands given the tasks made from it: in progress while any is open, done once
+    /// all are. With no tasks, it stays wherever it is (you manage it by hand).
+    /// </summary>
+    public static IdeaStatus? StatusFromTasks(IEnumerable<TaskItem> linkedTasks)
+    {
+        var tasks = linkedTasks.ToList();
+        if (tasks.Count == 0) return null;
+        return tasks.All(t => t.IsDone) ? IdeaStatus.Done : IdeaStatus.InProgress;
+    }
 
     /// <summary>"Auto study planner from exam dates #amiki #school" → text + tags.</summary>
     public static Idea Parse(string input, DateTime? createdAt = null)

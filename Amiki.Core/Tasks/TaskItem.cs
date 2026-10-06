@@ -14,6 +14,8 @@ public sealed class TaskItem : IEntity
     public Priority Priority { get; set; }
     public DateTime CreatedAt { get; init; } = DateTime.Now;
     public DateTime? CompletedAt { get; set; }
+    /// <summary>The idea this task was made from, if any. Finishing its tasks finishes the idea.</summary>
+    public Guid? IdeaId { get; set; }
 
     public bool IsDone => CompletedAt is not null;
     public bool IsOverdue => !IsDone && Due?.Date < DateTime.Today;

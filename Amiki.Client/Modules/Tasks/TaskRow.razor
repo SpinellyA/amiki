@@ -6,7 +6,7 @@
 
     <div class="task-main" @onclick="() => OnEdit.InvokeAsync(Item)">
         <div class="task-title">@Item.Title</div>
-        @if (Item.Due is not null || Item.Project is not null || !string.IsNullOrWhiteSpace(Item.Notes))
+        @if (Item.Due is not null || Item.Project is not null || !string.IsNullOrWhiteSpace(Item.Notes) || Item.IdeaId is not null)
         {
             <div class="task-meta">
                 @if (Item.Due is { } due && !Item.IsDone)
@@ -22,6 +22,12 @@
                 @if (!string.IsNullOrWhiteSpace(Item.Notes))
                 {
                     <MudIcon Icon="@Icons.Material.Outlined.Notes" Size="Size.Small" />
+                }
+                @if (Item.IdeaId is not null)
+                {
+                    <span title="Made from an idea: finishing it can finish the idea">
+                        <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" /> idea
+                    </span>
                 }
             </div>
         }
