@@ -1,0 +1,31 @@
+@*
+    The big ring: fills up as the current part goes by, with the time left in the middle.
+    Focus is drawn in the primary colour, breaks in green.
+*@
+
+<div class="pomo-dial @PomodoroFormat.CssClass(Phase) @(Running ? "running" : "")" role="timer"
+     aria-label="@($"{PomodoroFormat.Name(Phase)}: {PomodoroFormat.Clock(Remaining)} left")">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="pomo-track" cx="100" cy="100" r="@Radius" />
+        <circle class="pomo-fill" cx="100" cy="100" r="@Radius"
+                stroke-dasharray="@Number(Circumference)" stroke-dashoffset="@Number(Circumference * (1 - Progress))" />
+    </svg>
+    <div class="pomo-center">
+        <span class="pomo-phase">@PomodoroFormat.Name(Phase)</span>
+        <span class="pomo-time">@PomodoroFormat.Clock(Remaining)</span>
+        <span class="pomo-sub">@Caption</span>
+    </div>
+</div>
+
+@code {
+    private const double Radius = 90;
+    private static readonly double Circumference = 2 * Math.PI * Radius;
+
+    [Parameter] public PomodoroPhase Phase { get; set; }
+    [Parameter] public TimeSpan Remaining { get; set; }
+    [Parameter] public double Progress { get; set; }
+    [Parameter] public bool Running { get; set; }
+    [Parameter] public string Caption { get; set; } = "";
+
+    private static string Number(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

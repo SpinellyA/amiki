@@ -5,13 +5,14 @@ namespace Amiki.Modules.Tasks;
 ///   #word            project
 ///   !high !med !low  priority (also !1 !2 !3, !h !m !l)
 ///   @today @tomorrow @mon..@sun (next occurrence)
-/// Anything unrecognised stays in the title.
+/// Anything unrecognised stays in the title. Without an @day, the task is due on
+/// <paramref name="defaultDue"/>, which is today unless given.
 /// </summary>
 public static class QuickAdd
 {
-    public static TaskItem Parse(string input)
+    public static TaskItem Parse(string input, DateTime? defaultDue = null)
     {
-        var item = new TaskItem();
+        var item = new TaskItem { Due = defaultDue ?? DateTime.Today };
         var words = new List<string>();
 
         foreach (var token in input.Split(' ', StringSplitOptions.RemoveEmptyEntries))

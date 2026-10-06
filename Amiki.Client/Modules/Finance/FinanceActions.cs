@@ -2,7 +2,7 @@ using MudBlazor;
 
 namespace Amiki.Modules.Finance;
 
-public sealed class FinanceActions(FinanceStore store, IDialogService dialogs, ISnackbar snackbar)
+public sealed class FinanceActions(FinanceStore store, CategoryStore categories, IDialogService dialogs, ISnackbar snackbar)
 {
     private static readonly DialogOptions Options = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
 
@@ -10,7 +10,7 @@ public sealed class FinanceActions(FinanceStore store, IDialogService dialogs, I
     public async Task<bool> EditAsync(Transaction? tx = null)
     {
         var isNew = tx is null || store.All.All(t => t.Id != tx.Id);
-        var draft = tx?.Clone() ?? new Transaction { Category = Categories.DefaultFor(TxKind.Expense) };
+        var draft = tx?.Clone() ?? new Transaction { Category = DefaultCategory(TxKind.Expense) };
         var parameters = new DialogParameters<TransactionDialog> { { d => d.Item, draft } };
         var dialog = await dialogs.ShowAsync<TransactionDialog>(isNew ? "New transaction" : "Edit transaction", parameters, Options);
         if (await dialog.Result is not { Canceled: false, Data: Transaction saved }) return false;
@@ -65,6 +65,75 @@ public sealed class FinanceActions(FinanceStore store, IDialogService dialogs, I
                 : $"Checked {Plural(checks.Count, "account")}. Corrected {string.Join(", ", corrected.Select(c => $"{c.Account} by {Money.Signed(c.Difference)}"))}.",
             corrected.Count == 0 ? Severity.Success : Severity.Normal);
     }
+
+    /// <summary>The category you've used most for this direction lately, so logging starts on your usual one.</summary>
+    public string DefaultCategory(TxKind kind)
+    {
+        var pickable = categories.Pickable(kind).Select(c => c.Name).ToList();
+        var since = DateTime.Today.AddDays(-60);
+        return store.All.Where(t => t.Kind == kind && t.Date >= since && pickable.Contains(t.Category))
+                   .GroupBy(t => t.Category).MaxBy(g => g.Count())?.Key
+               ?? pickable.FirstOrDefault()
+               ?? Category.FallbackFor(kind);
+    }
+
+    /// <summary>Returns why it can't be added, or null once it's added.</summary>
+    public string? AddCategory(string name, TxKind kind, string icon)
+    {
+        var category = new Category { Name = name.Trim(), Kind = kind, Icon = icon };
+        if ((category.Validate() ?? NameProblem(category)) is { } problem) return problem;
+        categories.Save(category);
+        snackbar.Add($"Added “{category.Name}”", Severity.Normal);
+        return null;
+    }
+
+    /// <summary>Renames a category and moves its transactions along. Returns why it can't, or null once done.</summary>
+    public string? RenameCategory(Category category, string newName)
+    {
+        var renamed = category.Clone();
+        renamed.Name = newName.Trim();
+        if (renamed.Name == category.Name) return null;
+        if (category.IsBuiltIn) return $"“{category.Name}” is built in, so it can't be renamed.";
+        if ((renamed.Validate() ?? NameProblem(renamed)) is { } problem) return problem;
+
+        var moving = store.InCategory(category.Name, category.Kind).Select(t => t.Id).ToList();
+        categories.Save(renamed); // the new name has to exist before transactions point at it
+        store.Recategorize(moving, renamed.Name);
+        snackbar.Add($"Renamed “{category.Name}” to “{renamed.Name}”" + (moving.Count > 0 ? $" · {Plural(moving.Count, "transaction")} updated" : ""), Severity.Normal);
+        return null;
+    }
+
+    public void SetCategoryIcon(Category category, string icon)
+    {
+        var changed = category.Clone();
+        changed.Icon = icon;
+        categories.Save(changed);
+    }
+
+    /// <summary>Deletes a category. If transactions use it, first asks where they should move.</summary>
+    public async Task DeleteCategoryAsync(Category category)
+    {
+        if (category.IsBuiltIn) return;
+        var moving = store.InCategory(category.Name, category.Kind).Select(t => t.Id).ToList();
+        var moveTo = Category.FallbackFor(category.Kind);
+        if (moving.Count > 0)
+        {
+            var parameters = new DialogParameters<DeleteCategoryDialog> { { d => d.Item, category }, { d => d.Count, moving.Count } };
+            var dialog = await dialogs.ShowAsync<DeleteCategoryDialog>($"Delete “{category.Name}”?", parameters, Options);
+            if (await dialog.Result is not { Canceled: false, Data: string picked }) return;
+            moveTo = picked;
+        }
+        store.Recategorize(moving, moveTo); // the server only deletes a category nothing uses
+        categories.Remove(category);
+        WithUndo($"Deleted “{category.Name}”" + (moving.Count > 0 ? $" · {Plural(moving.Count, "transaction")} moved to {moveTo}" : ""), () =>
+        {
+            categories.Save(category);
+            store.Recategorize(moving, category.Name);
+        });
+    }
+
+    private string? NameProblem(Category category) =>
+        categories.NameTaken(category.Name, category.Kind, category.Id) ? $"There's already a category called “{category.Name}”." : null;
 
     private static string Plural(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";
 

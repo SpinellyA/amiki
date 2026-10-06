@@ -11,7 +11,7 @@ namespace Amiki.Data;
 ///
 /// Stores change their in-memory list first (so the screen updates instantly) and then queue
 /// the write here. A failed send (offline at school, server restarting) is retried with backoff
-/// until it goes through. Several saves of the same item that haven't been sent yet collapse
+/// until it goes through. Back-to-back saves of the same item that haven't been sent yet collapse
 /// into one, with the latest content. If the server rejects a change outright (400/409), it's
 /// dropped and <see cref="Rejected"/> says why.
 ///
@@ -56,8 +56,11 @@ public sealed class SyncQueue(Api api, IJSRuntime js)
         var url = $"api/{path}/{id}";
         var json = JsonSerializer.Serialize(item, Api.Json);
 
-        // Not sent yet? Just send the newest content instead of queueing another copy.
-        var waiting = _pending.FirstOrDefault(op => !op.Sending && op.Url == url && op.Method == "PUT");
+        // The last thing waiting is an unsent save of this same item (e.g. typing in a plan)? Send
+        // the newest content instead of queueing another copy. Only the last one, though: updating
+        // an earlier save would send this content ahead of changes it may depend on (a transaction
+        // moved to a category that is created further down the queue).
+        var waiting = _pending.Last?.Value is { Sending: false, Method: "PUT" } last && last.Url == url ? last : null;
         if (waiting is not null)
         {
             waiting.Json = json;

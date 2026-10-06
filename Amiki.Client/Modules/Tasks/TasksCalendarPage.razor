@@ -163,9 +163,8 @@
     private void OnQuickAddKey(KeyboardEventArgs e)
     {
         if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_quickAdd)) return;
-        var item = QuickAdd.Parse(_quickAdd);
+        var item = QuickAdd.Parse(_quickAdd, defaultDue: _selected);
         if (item.Title.Length == 0) return;
-        item.Due ??= _selected;
         Store.Upsert(item);
         _quickAdd = "";
     }

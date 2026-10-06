@@ -1,4 +1,6 @@
 @inject FinanceStore Store
+@inject CategoryStore Categories
+@inject FinanceActions Actions
 
 <MudDialog>
     <DialogContent>
@@ -12,10 +14,10 @@
             <MudTextField T="string" @bind-Value="Item.Note" Label="Note" Variant="Variant.Outlined" />
             <MudStack Row="true" Spacing="3">
                 <MudSelect T="string" @bind-Value="Item.Category" Label="Category" Variant="Variant.Outlined">
-                    @foreach (var c in Categories.Of(Item.Kind))
+                    @foreach (var c in Choices())
                     {
                         <MudSelectItem Value="c.Name">
-                            <MudIcon Icon="@c.Icon" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
+                            <MudIcon Icon="@CategoryIcons.Get(c.Icon)" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
                         </MudSelectItem>
                     }
                 </MudSelect>
@@ -46,11 +48,17 @@
         set => Item.Date = value?.Date ?? DateTime.Today;
     }
 
+    // A balance fix being edited keeps its category in the list, even though you can't pick it for new entries.
+    private IEnumerable<Category> Choices() =>
+        Categories.Find(Item.Category, Item.Kind) is { } current && Category.IsCorrection(current.Name)
+            ? Categories.Pickable(Item.Kind).Append(current)
+            : Categories.Pickable(Item.Kind);
+
     // Switching direction resets a category that belongs to the other direction.
     private void SetKind(TxKind kind)
     {
         Item.Kind = kind;
-        if (Categories.Get(Item.Category).Kind != kind)
-            Item.Category = Categories.DefaultFor(kind);
+        if (Categories.Find(Item.Category, kind) is null)
+            Item.Category = Actions.DefaultCategory(kind);
     }
 }

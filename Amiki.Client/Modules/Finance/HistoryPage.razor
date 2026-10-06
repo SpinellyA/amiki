@@ -24,6 +24,7 @@
         <MudChip Value="@("transactions")">Transactions</MudChip>
         <MudChip Value="@("transfers")">Transfers</MudChip>
         <MudChip Value="@("balance-checks")">Balance checks</MudChip>
+        <MudChip Value="@("categories")">Categories</MudChip>
     </MudChipSet>
     <MudSpacer />
     <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search" Clearable="true" Margin="Margin.Dense"
@@ -112,6 +113,7 @@ else if (!Shown.Any())
     {
         "transfers" => Icons.Material.Filled.SwapHoriz,
         "balance-checks" => Icons.Material.Outlined.FactCheck,
+        "categories" => Icons.Material.Outlined.Category,
         _ => e.Action switch
         {
             "deleted" => Icons.Material.Outlined.DeleteOutline,

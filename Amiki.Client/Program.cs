@@ -6,6 +6,7 @@ using Amiki.Data;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
+using Amiki.Modules.Pomodoro;
 using Amiki.Modules.Tasks;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -35,5 +36,6 @@ builder.Services.AddInboxModule();
 builder.Services.AddTasksModule();
 builder.Services.AddIdeasModule();
 builder.Services.AddFinanceModule();
+builder.Services.AddPomodoroModule();
 
 await builder.Build().RunAsync();

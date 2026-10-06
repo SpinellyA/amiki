@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiki.Api", "Amiki.Api\Amik
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiki.Client", "Amiki.Client\Amiki.Client.csproj", "{978B13F4-84C4-4D75-8A8A-5FCCD2BD57AB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiki.Tests", "Amiki.Tests\Amiki.Tests.csproj", "{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{978B13F4-84C4-4D75-8A8A-5FCCD2BD57AB}.Release|x64.Build.0 = Release|Any CPU
 		{978B13F4-84C4-4D75-8A8A-5FCCD2BD57AB}.Release|x86.ActiveCfg = Release|Any CPU
 		{978B13F4-84C4-4D75-8A8A-5FCCD2BD57AB}.Release|x86.Build.0 = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|x64.Build.0 = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Debug|x86.Build.0 = Debug|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|x64.ActiveCfg = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|x64.Build.0 = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|x86.ActiveCfg = Release|Any CPU
+		{E5221E3C-A4B9-401C-AF2C-42C51FC1711C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

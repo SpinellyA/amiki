@@ -1,0 +1,35 @@
+@* Adds a category to the list it sits under: pick an icon, type a name, Enter. *@
+@inject FinanceActions Actions
+
+<div class="category-row category-new">
+    <CategoryIconPicker @bind-Value="_icon" Income="Kind == TxKind.Income" />
+    <div class="category-main">
+        <MudTextField T="string" @bind-Value="_name" Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
+                      Placeholder="@(Kind == TxKind.Income ? "New income category" : "New spending category")"
+                      MaxLength="Category.MaxNameLength" Error="_problem is not null" ErrorText="@_problem"
+                      OnKeyDown="OnKey" aria-label="New category name" Class="category-name-field" />
+    </div>
+    <MudButton Variant="Variant.Text" Color="Color.Primary" Disabled="string.IsNullOrWhiteSpace(_name)" OnClick="Add">Add</MudButton>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TxKind Kind { get; set; }
+
+    private string _icon = CategoryIcons.Default;
+    private string _name = "";
+    private string? _problem;
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Add();
+    }
+
+    private void Add()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+        _problem = Actions.AddCategory(_name, Kind, _icon);
+        if (_problem is not null) return;
+        _name = "";
+        _icon = CategoryIcons.Default;
+    }
+}

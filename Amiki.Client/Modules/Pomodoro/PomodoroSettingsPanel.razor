@@ -1,0 +1,67 @@
+@*
+    Lengths and behaviour, plus one-tap presets to play with. Changes save as you make them; a
+    part that's already running keeps its length and the new one starts with the next part.
+*@
+@inject PomodoroTimer Timer
+@inject PomodoroPrefs Prefs
+
+<MudPaper Outlined="true" Class="widget pomo-settings">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" />
+        <span>Settings</span>
+    </div>
+
+    <div class="pomo-presets">
+        @foreach (var preset in Presets)
+        {
+            <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small"
+                     Color="@(Matches(preset.Settings) ? Color.Primary : Color.Default)"
+                     OnClick="() => UsePreset(preset.Settings)">@preset.Name</MudChip>
+        }
+    </div>
+
+    <div class="pomo-fields">
+        <MudNumericField T="int" Value="S.FocusMinutes" ValueChanged="v => Use(S with { FocusMinutes = v })"
+                         Label="Focus" Adornment="Adornment.End" AdornmentText="min" Min="1" Max="PomodoroSettings.MaxMinutes"
+                         Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudNumericField T="int" Value="S.ShortBreakMinutes" ValueChanged="v => Use(S with { ShortBreakMinutes = v })"
+                         Label="Short break" Adornment="Adornment.End" AdornmentText="min" Min="1" Max="PomodoroSettings.MaxMinutes"
+                         Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudNumericField T="int" Value="S.LongBreakMinutes" ValueChanged="v => Use(S with { LongBreakMinutes = v })"
+                         Label="Long break" Adornment="Adornment.End" AdornmentText="min" Min="1" Max="PomodoroSettings.MaxMinutes"
+                         Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudNumericField T="int" Value="S.RoundsBeforeLongBreak" ValueChanged="v => Use(S with { RoundsBeforeLongBreak = v })"
+                         Label="Rounds per set" HelperText="Long break after this many" Min="1" Max="PomodoroSettings.MaxRounds"
+                         Variant="Variant.Outlined" Margin="Margin.Dense" />
+    </div>
+
+    <div class="pomo-switches">
+        <MudSwitch T="bool" Value="S.AutoStartNext" ValueChanged="v => Use(S with { AutoStartNext = v })" Color="Color.Primary"
+                   Label="Start the next part automatically" />
+        <MudSwitch T="bool" Value="S.Chime" ValueChanged="v => Use(S with { Chime = v })" Color="Color.Primary"
+                   Label="Chime when time's up" />
+    </div>
+</MudPaper>
+
+@code {
+    private sealed record Preset(string Name, PomodoroSettings Settings);
+
+    private static readonly Preset[] Presets =
+    [
+        new("Classic 25 / 5", new PomodoroSettings(25, 5, 15, 4)),
+        new("Short 15 / 3", new PomodoroSettings(15, 3, 10, 4)),
+        new("Deep work 50 / 10", new PomodoroSettings(50, 10, 30, 3)),
+        new("Try it out 1 / 1", new PomodoroSettings(1, 1, 2, 2)),
+    ];
+
+    private PomodoroSettings S => Timer.Settings;
+
+    // Presets set the lengths only; your auto-start and chime choices stay as they are.
+    private bool Matches(PomodoroSettings p) =>
+        S.FocusMinutes == p.FocusMinutes && S.ShortBreakMinutes == p.ShortBreakMinutes
+        && S.LongBreakMinutes == p.LongBreakMinutes && S.RoundsBeforeLongBreak == p.RoundsBeforeLongBreak;
+
+    private void UsePreset(PomodoroSettings preset) => Use(preset with { AutoStartNext = S.AutoStartNext, Chime = S.Chime });
+
+    private void Use(PomodoroSettings settings) => Prefs.Save(settings);
+}

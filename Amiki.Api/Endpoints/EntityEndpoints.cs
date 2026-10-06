@@ -15,13 +15,15 @@ public static class EntityEndpoints
     /// <param name="checkReplace">Rules comparing the stored item with the incoming one (409 when broken).</param>
     /// <param name="checkAsync">Rules that need the database, e.g. "that account exists" (400 when broken).</param>
     /// <param name="describe">When set, every real change is written to the audit log in the same save.</param>
+    /// <param name="checkDelete">Rules for removing a stored item, e.g. "nothing still uses it" (409 when broken).</param>
     public static RouteGroupBuilder MapEntity<T>(
         this RouteGroupBuilder api,
         string path,
         Func<AmikiDb, DbSet<T>> set,
         Func<T, T, string?>? checkReplace = null,
         Func<AmikiDb, T, CancellationToken, Task<string?>>? checkAsync = null,
-        Func<T, string>? describe = null)
+        Func<T, string>? describe = null,
+        Func<AmikiDb, T, CancellationToken, Task<string?>>? checkDelete = null)
         where T : class, IEntity
     {
         var group = api.MapGroup($"/{path}").WithTags(path);
@@ -63,6 +65,8 @@ public static class EntityEndpoints
         {
             if (await set(db).FindAsync([id], ct) is { } stored)
             {
+                if (checkDelete is not null && await checkDelete(db, stored, ct) is { } conflict)
+                    return Results.Problem(conflict, statusCode: 409);
                 if (describe is not null)
                     db.AuditLog.Add(Audit.Entry(path, id, "deleted", describe(stored), Audit.Serialize(stored), null));
                 set(db).Remove(stored);

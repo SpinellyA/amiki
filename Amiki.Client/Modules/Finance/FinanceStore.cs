@@ -47,10 +47,10 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
     /// transfers themselves don't appear.
     /// </summary>
     public IEnumerable<Transaction> FlowsInMonth(DateTime month) =>
-        InMonth(month).Where(t => !Categories.IsCorrection(t.Category))
+        InMonth(month).Where(t => !Category.IsCorrection(t.Category))
             .Concat(TransfersInMonth(month).Where(t => t.Fee > 0).Select(t => new Transaction
             {
-                Id = t.Id, Date = t.Date, Amount = t.Fee, Kind = TxKind.Expense, Category = Categories.Fees,
+                Id = t.Id, Date = t.Date, Amount = t.Fee, Kind = TxKind.Expense, Category = Category.Fees,
                 Account = t.From, Note = $"Fee: {t.From} → {t.To}", CreatedAt = t.CreatedAt,
             }));
 
@@ -84,6 +84,24 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
         Changed?.Invoke();
     }
 
+    public IReadOnlyList<Transaction> InCategory(string name, TxKind kind) =>
+        _items.Where(t => t.Category == name && t.Kind == kind).ToList();
+
+    /// <summary>Files these transactions under another category, each saved as a normal (audited) edit.</summary>
+    public void Recategorize(IEnumerable<Guid> ids, string category)
+    {
+        var moving = ids.ToHashSet();
+        for (var i = 0; i < _items.Count; i++)
+        {
+            if (!moving.Contains(_items[i].Id) || _items[i].Category == category) continue;
+            var moved = _items[i].Clone();
+            moved.Category = category;
+            _items[i] = moved;
+            sync.Put(TransactionsPath, moved.Id, moved);
+        }
+        Changed?.Invoke();
+    }
+
     public void Move(Transfer transfer)
     {
         Replace(_transfers, transfer, t => t.Id);
@@ -112,7 +130,7 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
             {
                 Amount = Math.Abs(check.Difference),
                 Kind = check.Difference > 0 ? TxKind.Income : TxKind.Expense,
-                Category = Categories.BalanceFix,
+                Category = Category.BalanceFix,
                 Account = account,
                 Note = $"Balance check: matched {account} to its real balance of {Money.Format(actual)}",
             };

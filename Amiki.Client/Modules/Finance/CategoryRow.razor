@@ -1,0 +1,64 @@
+@*
+    One category: icon, name (edit in place; Enter or leaving the field saves, Escape undoes),
+    how many transactions use it, and delete. Built-in ones can only change their icon.
+*@
+@inject FinanceActions Actions
+
+<div class="category-row">
+    <CategoryIconPicker Value="@Item.Icon" ValueChanged="icon => Actions.SetCategoryIcon(Item, icon)" Income="Item.Kind == TxKind.Income" />
+    <div class="category-main">
+        @if (Item.IsBuiltIn)
+        {
+            <span class="category-name">@Item.Name</span>
+            <span class="category-meta">Built in · @(Item.Name == Category.Fees ? "transfer fees" : Used)</span>
+        }
+        else
+        {
+            <MudTextField T="string" @bind-Value="_name" Immediate="true" Variant="Variant.Text" Margin="Margin.Dense"
+                          MaxLength="Category.MaxNameLength" Error="_problem is not null" ErrorText="@_problem"
+                          OnBlur="Commit" OnKeyDown="OnKey" aria-label="@($"Name of {Item.Name}")" Class="category-name-field" />
+            <span class="category-meta">@Used</span>
+        }
+    </div>
+    @if (!Item.IsBuiltIn)
+    {
+        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" aria-label="@($"Delete {Item.Name}")"
+                       OnClick="() => OnDelete.InvokeAsync(Item)" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Category Item { get; set; } = default!;
+    [Parameter] public int Count { get; set; }
+    [Parameter] public EventCallback<Category> OnDelete { get; set; }
+
+    private string _name = "";
+    private string? _problem;
+    private string _shownFor = "";
+
+    private string Used => Count == 0 ? "not used yet" : $"{Count} transaction{(Count == 1 ? "" : "s")}";
+
+    // Picks up renames from elsewhere (another device), but never overwrites what you're typing.
+    protected override void OnParametersSet()
+    {
+        if (_shownFor == Item.Name) return;
+        _shownFor = _name = Item.Name;
+        _problem = null;
+    }
+
+    private void Commit()
+    {
+        _problem = Actions.RenameCategory(Item, _name);
+        if (_problem is null) _shownFor = _name = _name.Trim();
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Commit();
+        else if (e.Key == "Escape")
+        {
+            _name = Item.Name;
+            _problem = null;
+        }
+    }
+}

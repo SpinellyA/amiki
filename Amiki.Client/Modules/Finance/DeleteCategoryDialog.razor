@@ -1,0 +1,35 @@
+@* Deleting a category that's in use: its transactions have to go somewhere, so you pick where. *@
+@inject CategoryStore Categories
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            “@Item.Name” has @Count transaction@(Count == 1 ? "" : "s"). They'll move to the category you pick.
+            Nothing is deleted except the category itself, and you can undo it.
+        </MudText>
+        <MudSelect T="string" @bind-Value="_moveTo" Label="Move them to" Variant="Variant.Outlined">
+            @foreach (var c in Categories.Pickable(Item.Kind).Where(c => c.Id != Item.Id))
+            {
+                <MudSelectItem Value="c.Name">
+                    <MudIcon Icon="@CategoryIcons.Get(c.Icon)" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
+                </MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="() => Dialog.Close(DialogResult.Ok(_moveTo))">
+            Move and delete
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Category Item { get; set; } = default!;
+    [Parameter] public int Count { get; set; }
+
+    private string _moveTo = "";
+
+    protected override void OnInitialized() => _moveTo = Category.FallbackFor(Item.Kind);
+}

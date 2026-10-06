@@ -1,0 +1,49 @@
+@page "/money/categories"
+@implements IDisposable
+@inject CategoryStore Categories
+@inject FinanceStore Store
+@inject FinanceActions Actions
+
+<PageTitle>Categories · Money · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Categories</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Rename one and its transactions follow. Delete one and you pick where its transactions go.</MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="FinanceModule.Views" Current="money/categories" />
+    </div>
+</div>
+
+<MudToggleGroup T="TxKind" @bind-Value="_kind" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="category-kind">
+    <MudToggleItem Value="TxKind.Expense" Text="Spending" />
+    <MudToggleItem Value="TxKind.Income" Text="Income" />
+</MudToggleGroup>
+
+<MudPaper Outlined="true" Class="task-list category-list">
+    @foreach (var category in Categories.Pickable(_kind))
+    {
+        <CategoryRow @key="category.Id" Item="category" Count="Store.InCategory(category.Name, category.Kind).Count"
+                     OnDelete="Actions.DeleteCategoryAsync" />
+    }
+    <NewCategoryRow @key="_kind" Kind="_kind" />
+</MudPaper>
+
+@code {
+    private TxKind _kind = TxKind.Expense;
+
+    protected override void OnInitialized()
+    {
+        Categories.Changed += OnChanged;
+        Store.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Categories.Changed -= OnChanged;
+        Store.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

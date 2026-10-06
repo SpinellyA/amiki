@@ -2,7 +2,9 @@
     One-row logging for the common case: pick direction, type the amount, press Enter.
     Category and account remember the last choice, so repeat purchases are two keystrokes.
 *@
+@implements IDisposable
 @inject FinanceStore Store
+@inject CategoryStore Categories
 @inject FinanceActions Actions
 
 @* The wrapper lets the row lay itself out by its own width (the drawer eats into the page). *@
@@ -16,10 +18,10 @@
                      Adornment="Adornment.Start" AdornmentText="₱" Min="0" HideSpinButtons="true" OnKeyDown="OnKey"
                      Class="quick-tx-amount" aria-label="Amount" />
     <MudSelect T="string" @bind-Value="_category" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="Category">
-        @foreach (var c in Categories.Of(_kind))
+        @foreach (var c in Categories.Pickable(_kind))
         {
             <MudSelectItem Value="c.Name">
-                <MudIcon Icon="@c.Icon" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
+                <MudIcon Icon="@CategoryIcons.Get(c.Icon)" Size="Size.Small" Class="mr-2" Style="vertical-align: middle" />@c.Name
             </MudSelectItem>
         }
     </MudSelect>
@@ -38,14 +40,29 @@
 @code {
     private TxKind _kind = TxKind.Expense;
     private decimal? _amount;
-    private string _category = Categories.DefaultFor(TxKind.Expense);
+    private string _category = "";
     private string _account = "Cash";
     private string _note = "";
+
+    protected override void OnInitialized()
+    {
+        _category = Actions.DefaultCategory(_kind);
+        Categories.Changed += OnCategoriesChanged;
+    }
+
+    public void Dispose() => Categories.Changed -= OnCategoriesChanged;
+
+    // The picked category was renamed or deleted (maybe on another device): fall back to the usual one.
+    private void OnCategoriesChanged()
+    {
+        if (Categories.Find(_category, _kind) is null) _category = Actions.DefaultCategory(_kind);
+        InvokeAsync(StateHasChanged);
+    }
 
     private void SetKind(TxKind kind)
     {
         _kind = kind;
-        _category = Categories.DefaultFor(kind);
+        _category = Actions.DefaultCategory(kind);
     }
 
     private void OnKey(KeyboardEventArgs e)

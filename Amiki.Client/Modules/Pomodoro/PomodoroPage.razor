@@ -1,0 +1,89 @@
+@page "/pomodoro"
+@implements IDisposable
+@inject PomodoroTimer Timer
+@inject PomodoroPrefs Prefs
+@inject IJSRuntime JS
+
+<PageTitle>Pomodoro · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Pomodoro</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Focus in rounds, rest in between. It keeps running while you use the rest of Amiki.</MudText>
+    </div>
+</div>
+
+<div class="pomo-layout">
+    <MudPaper Outlined="true" Class="widget pomo-card">
+        <MudToggleGroup T="PomodoroPhase" Value="Timer.Phase" ValueChanged="Timer.SwitchTo" Color="Color.Primary"
+                        Size="Size.Small" Outlined="true" Class="pomo-phases">
+            @foreach (var phase in Enum.GetValues<PomodoroPhase>())
+            {
+                <MudToggleItem Value="phase" Text="@PomodoroFormat.Name(phase)" />
+            }
+        </MudToggleGroup>
+
+        <PomodoroDial Phase="Timer.Phase" Remaining="Timer.Remaining" Progress="Timer.Progress" Running="Timer.IsRunning" Caption="@Caption" />
+
+        <div class="pomo-controls">
+            <MudIconButton Icon="@Icons.Material.Filled.Replay" aria-label="Restart this part" title="Restart this part"
+                           Disabled="!Timer.InProgress" OnClick="Timer.Reset" />
+            <MudButton Variant="Variant.Filled" Color="@(Timer.Phase == PomodoroPhase.Focus ? Color.Primary : Color.Success)" Size="Size.Large"
+                       StartIcon="@(Timer.IsRunning ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)"
+                       Class="pomo-main-button" OnClick="ToggleAsync">
+                @(Timer.IsRunning ? "Pause" : Timer.InProgress ? "Resume" : "Start")
+            </MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.SkipNext" aria-label="@($"Skip to {PomodoroFormat.Name(Timer.Next).ToLowerInvariant()}")"
+                           title="@($"Skip to {PomodoroFormat.Name(Timer.Next).ToLowerInvariant()}")" OnClick="Timer.Skip" />
+        </div>
+
+        <div class="pomo-adjust">
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Timer.AddMinutes(-1)" Disabled="Timer.Remaining <= TimeSpan.Zero">−1 min</MudButton>
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Timer.AddMinutes(1)">+1 min</MudButton>
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Timer.AddMinutes(5)">+5 min</MudButton>
+        </div>
+
+        <div class="pomo-rounds" aria-label="@($"{Timer.RoundsDone} of {Timer.Settings.RoundsBeforeLongBreak} rounds done in this set")">
+            @for (var i = 0; i < Timer.Settings.RoundsBeforeLongBreak; i++)
+            {
+                <span class="@RoundClass(i)"></span>
+            }
+        </div>
+        <div class="pomo-today muted">
+            @(Timer.FocusSessionsToday == 0
+                ? "No focus rounds yet today."
+                : $"{Timer.FocusSessionsToday} focus round{(Timer.FocusSessionsToday == 1 ? "" : "s")} done today")
+        </div>
+    </MudPaper>
+
+    <PomodoroSettingsPanel />
+</div>
+
+@code {
+    private string Caption => Timer.Phase == PomodoroPhase.Focus
+        ? $"Round {Math.Min(Timer.RoundsDone + 1, Timer.Settings.RoundsBeforeLongBreak)} of {Timer.Settings.RoundsBeforeLongBreak}"
+        : $"Then: {PomodoroFormat.Name(Timer.Next).ToLowerInvariant()}";
+
+    // Done rounds are filled; the round you're in (during focus) is outlined in the accent colour.
+    private string RoundClass(int i) =>
+        i < Timer.RoundsDone ? "pomo-round done"
+        : i == Timer.RoundsDone && Timer.Phase == PomodoroPhase.Focus ? "pomo-round current"
+        : "pomo-round";
+
+    protected override void OnInitialized()
+    {
+        Prefs.EnsureLoaded();
+        Timer.Changed += OnChanged;
+    }
+
+    public void Dispose() => Timer.Changed -= OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ToggleAsync()
+    {
+        // A click is the moment browsers allow sound to be switched on, for the chime later.
+        if (!Timer.IsRunning && Timer.Settings.Chime) await JS.InvokeVoidAsync("amiki.unlockAudio");
+        Timer.Toggle();
+    }
+}

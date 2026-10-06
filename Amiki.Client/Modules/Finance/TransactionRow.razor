@@ -1,6 +1,8 @@
+@inject CategoryStore Categories
+
 <div class="tx-row">
     <span class="tx-icon @(Item.Kind == TxKind.Income ? "income" : "")">
-        <MudIcon Icon="@Categories.Get(Item.Category).Icon" Size="Size.Small" />
+        <MudIcon Icon="@Categories.IconOf(Item.Category, Item.Kind)" Size="Size.Small" />
     </span>
     <div class="task-main" @onclick="() => OnEdit.InvokeAsync(Item)">
         <div class="task-title">@Item.Note</div>

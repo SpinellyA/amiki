@@ -85,9 +85,14 @@ api.MapEntity("tasks", db => db.Tasks);
 api.MapEntity("ideas", db => db.Ideas);
 api.MapEntity("plans", db => db.Plans, Plan.CheckReplace);
 
-// Money: every change is audited, and account names must be real accounts.
+// Money: every change is audited, and account and category names must be real ones.
+api.MapEntity("categories", db => db.Categories,
+    checkReplace: Category.CheckReplace,
+    checkAsync: MoneyRules.CategoryNameIsFree,
+    describe: c => c.Describe(),
+    checkDelete: MoneyRules.CategoryCanBeDeleted);
 api.MapEntity("transactions", db => db.Transactions,
-    checkAsync: (db, tx, ct) => MoneyRules.AccountExists(db, tx.Account, ct),
+    checkAsync: async (db, tx, ct) => await MoneyRules.AccountExists(db, tx.Account, ct) ?? await MoneyRules.CategoryExists(db, tx, ct),
     describe: tx => tx.Describe());
 api.MapEntity("transfers", db => db.Transfers,
     checkAsync: async (db, t, ct) => await MoneyRules.AccountExists(db, t.From, ct) ?? await MoneyRules.AccountExists(db, t.To, ct),

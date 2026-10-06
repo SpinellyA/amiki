@@ -183,7 +183,7 @@
             .Where(t => _category is null || t.Category == _category)
             .Select(t => new Entry(t.Date, t.CreatedAt, t.Signed, Transaction: t))
             .Concat(Store.TransfersInMonth(_month)
-                .Where(t => _category is null || (_category == Categories.Fees && t.Fee > 0))
+                .Where(t => _category is null || (_category == Category.Fees && t.Fee > 0))
                 .Select(t => new Entry(t.Date, t.CreatedAt, -t.Fee, Transfer: t)));
 
     private static string Signed(decimal v) => (v < 0 ? "−" : "") + Money.Format(v);

@@ -18,6 +18,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     public DbSet<InboxItem> Inbox => Set<InboxItem>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<Idea> Ideas => Set<Idea>();
+    public DbSet<Category> Categories => Set<Category>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
@@ -55,6 +56,16 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             tx.ToTable("transactions");
             tx.Property(t => t.Kind).HasConversion<string>().HasMaxLength(16);
             tx.HasIndex(t => t.Date);
+        });
+
+        model.Entity<Category>(category =>
+        {
+            category.ToTable("categories");
+            category.Property(c => c.Kind).HasConversion<string>().HasMaxLength(16);
+            category.Property(c => c.Name).HasMaxLength(Category.MaxNameLength);
+            category.Property(c => c.Icon).HasMaxLength(40);
+            category.HasIndex(c => new { c.Kind, c.Name }).IsUnique();
+            category.HasData(StarterCategories.All);
         });
 
         // Start at zero: the first balance check on each account sets its real amount (as a

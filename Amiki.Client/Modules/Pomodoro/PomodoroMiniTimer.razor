@@ -1,0 +1,52 @@
+@*
+    While the timer is going (or paused partway), a small pill on every other page shows the time
+    left, with pause/resume. The browser tab's title shows it too, for a glance from another window.
+*@
+@implements IDisposable
+@inject PomodoroTimer Timer
+@inject PomodoroPrefs Prefs
+@inject PomodoroChime Chime
+@inject NavigationManager Nav
+
+@if (Timer.IsRunning)
+{
+    // The newest title on the page wins. A fresh key each second re-adds this one, so it stays
+    // on top of the page's own title; once the timer stops, the page's title comes back.
+    var title = $"{PomodoroFormat.Clock(Timer.Remaining)} · {PomodoroFormat.Name(Timer.Phase)} · Amiki";
+    <PageTitle @key="title">@title</PageTitle>
+}
+
+@if (Timer.InProgress && !OnPomodoroPage)
+{
+    <div class="pomo-mini @PomodoroFormat.CssClass(Timer.Phase)" role="timer">
+        <a href="pomodoro" class="pomo-mini-time" aria-label="Open the Pomodoro timer">
+            <MudIcon Icon="@Icons.Material.Outlined.Timer" Size="Size.Small" />
+            @PomodoroFormat.Clock(Timer.Remaining)
+        </a>
+        <MudIconButton Icon="@(Timer.IsRunning ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" Size="Size.Small"
+                       aria-label="@(Timer.IsRunning ? "Pause timer" : "Resume timer")" OnClick="Timer.Toggle" />
+    </div>
+}
+
+@code {
+    private bool OnPomodoroPage => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].TrimEnd('/') == "pomodoro";
+
+    protected override void OnInitialized()
+    {
+        // Rendered on every page from the start, so settings load and the chime listens even if
+        // the Pomodoro page hasn't been opened yet.
+        Prefs.EnsureLoaded();
+        _ = Chime;
+        Timer.Changed += OnChanged;
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    public void Dispose()
+    {
+        Timer.Changed -= OnChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+}

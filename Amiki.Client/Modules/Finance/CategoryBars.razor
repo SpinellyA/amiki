@@ -2,6 +2,7 @@
     "Where it went": spending per category as horizontal bars. One series, so one colour and no
     legend; the category name and icon carry identity, the value sits at the bar tip.
 *@
+@inject CategoryStore Categories
 
 @if (_rows.Count == 0)
 {
@@ -15,12 +16,12 @@
                 disabled="@(!SelectedChanged.HasDelegate)"
                 @onclick="() => SelectedChanged.InvokeAsync(row.Name == Selected ? null : row.Name)">
             <span class="cat-label">
-                <MudIcon Icon="@Categories.Get(row.Name).Icon" Size="Size.Small" />
+                <MudIcon Icon="@Categories.IconOf(row.Name, TxKind.Expense)" Size="Size.Small" />
                 @row.Name
             </span>
             <span class="cat-track">
                 @* Scaled against the track minus room for the value label, so the longest bar and its label always fit. *@
-                <span class="cat-bar" style="width: calc((100% - 7.5rem) * @((row.Amount / _max).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)))"></span>
+                <span class="cat-bar" style="width: calc((100% - var(--cat-value-room)) *@((row.Amount / _max).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)))"></span>
                 <span class="cat-value">@Money.Format(row.Amount) <span class="muted">@row.Share.ToString("0%")</span></span>
             </span>
         </button>

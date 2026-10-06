@@ -58,10 +58,13 @@ else
         <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Responsive" Class="drawer">
             <MudNavMenu Class="mt-3">
                 <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.SpaceDashboard">Dashboard</MudNavLink>
-                <div class="nav-section">Modules</div>
-                @foreach (var module in Modules.OrderBy(m => m.Order))
+                @foreach (var section in Modules.GroupBy(m => m.Section).OrderBy(g => g.Key))
                 {
-                    <MudNavLink Href="@module.Href" Icon="@module.Icon">@module.Name</MudNavLink>
+                    <div class="nav-section">@section.Key</div>
+                    @foreach (var module in section.OrderBy(m => m.Order))
+                    {
+                        <MudNavLink Href="@module.Href" Icon="@module.Icon">@module.Name</MudNavLink>
+                    }
                 }
             </MudNavMenu>
         </MudDrawer>

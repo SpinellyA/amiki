@@ -13,6 +13,8 @@ public sealed class TaskActions(TaskStore store, IDialogService dialogs, ISnackb
     {
         var isNew = item is null || !store.All.Contains(item);
         var draft = item?.Clone() ?? new TaskItem();
+        // New tasks start due today (clear the date in the dialog for "someday").
+        if (isNew) draft.Due ??= DateTime.Today;
         var parameters = new DialogParameters<TaskEditDialog> { { d => d.Item, draft } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
 
