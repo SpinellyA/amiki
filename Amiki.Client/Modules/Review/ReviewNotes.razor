@@ -1,0 +1,82 @@
+@*
+    The reflection for the week: two boxes, saved as you type (a moment after you stop, and when
+    you leave the box). Below them, the weeks you've written about, to jump back to.
+*@
+@implements IDisposable
+@inject WeeklyNoteStore Notes
+
+<MudPaper Outlined="true" Class="widget review-notes">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.EditNote" Size="Size.Small" />
+        <span>Looking back</span>
+        <MudSpacer />
+        <span class="muted widget-hint">@SavedText</span>
+    </div>
+    <div class="review-notes-fields">
+        <MudTextField T="string" Value="_note.WentWell" ValueChanged="v => Edit(n => n.WentWell = v)" Immediate="true"
+                      Label="What went well?" Lines="4" AutoGrow="true" MaxLength="WeeklyNote.MaxLength" Variant="Variant.Outlined"
+                      OnBlur="SaveNow" />
+        <MudTextField T="string" Value="_note.ToChange" ValueChanged="v => Edit(n => n.ToChange = v)" Immediate="true"
+                      Label="What would you change next week?" Lines="4" AutoGrow="true" MaxLength="WeeklyNote.MaxLength" Variant="Variant.Outlined"
+                      OnBlur="SaveNow" />
+    </div>
+    @if (Past.Count > 0)
+    {
+        <div class="review-past">
+            <span class="muted">Past weeks:</span>
+            @foreach (var past in Past)
+            {
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="() => OnPickWeek.InvokeAsync(new WeekRange(past.WeekStart))">
+                    @(new WeekRange(past.WeekStart).Label)
+                </MudChip>
+            }
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private static readonly TimeSpan SaveAfter = TimeSpan.FromMilliseconds(800);
+
+    [Parameter, EditorRequired] public WeekRange Week { get; set; }
+    [Parameter] public EventCallback<WeekRange> OnPickWeek { get; set; }
+
+    private WeeklyNote _note = default!;
+    private bool _dirty;
+    private CancellationTokenSource? _debounce;
+
+    private List<WeeklyNote> Past => Notes.Written.Where(n => n.WeekStart != Week.Start).Take(8).ToList();
+
+    private string SavedText => _dirty ? "Saving…" : _note.IsEmpty ? "Only you see this" : $"Saved {When.Short(_note.UpdatedAt)}";
+
+    // The page gives each week its own instance (@key), so this runs once per week shown.
+    protected override void OnInitialized() => _note = Notes.For(Week).Clone();
+
+    private void Edit(Action<WeeklyNote> change)
+    {
+        change(_note);
+        _dirty = true;
+        _debounce?.Cancel();
+        var cts = _debounce = new CancellationTokenSource();
+        _ = Task.Delay(SaveAfter, cts.Token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled) InvokeAsync(SaveNow);
+        }, TaskScheduler.Default);
+    }
+
+    private void SaveNow()
+    {
+        Persist();
+        StateHasChanged();
+    }
+
+    private void Persist()
+    {
+        if (!_dirty) return;
+        _debounce?.Cancel();
+        _dirty = false;
+        Notes.Save(_note.Clone());
+    }
+
+    // Leaving the page (or switching weeks) mid-sentence still saves it.
+    public void Dispose() => Persist();
+}

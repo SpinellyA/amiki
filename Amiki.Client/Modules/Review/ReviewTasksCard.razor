@@ -1,0 +1,53 @@
+@* Tasks for the week: what got done, what's overdue right now, and what's coming next week. *@
+@inject TaskActions Actions
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Size="Size.Small" />
+        <span>Tasks</span>
+        <MudSpacer />
+        <MudLink Href="tasks" Typo="Typo.body2">All tasks →</MudLink>
+    </div>
+
+    <ReviewList Title="Done this week" Empty="Nothing ticked off this week." Count="Summary.TasksDone.Count">
+        @foreach (var task in Summary.TasksDone.Take(Shown))
+        {
+            <div class="review-line link done" @onclick="() => Actions.EditAsync(task)">
+                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                <span class="review-line-text">@task.Title</span>
+                <span class="muted">@task.CompletedAt!.Value.ToString("ddd")</span>
+            </div>
+        }
+    </ReviewList>
+
+    @if (Summary.Overdue.Count > 0)
+    {
+        <ReviewList Title="Overdue now" Count="Summary.Overdue.Count" Danger="true">
+            @foreach (var task in Summary.Overdue.Take(Shown))
+            {
+                <div class="review-line link" @onclick="() => Actions.EditAsync(task)">
+                    <MudIcon Icon="@Icons.Material.Outlined.Event" Size="Size.Small" />
+                    <span class="review-line-text">@task.Title</span>
+                    <span class="overdue">@TaskFormat.Due(task.Due!.Value)</span>
+                </div>
+            }
+        </ReviewList>
+    }
+
+    <ReviewList Title="Due next week" Empty="Nothing due next week yet." Count="Summary.DueNextWeek.Count">
+        @foreach (var task in Summary.DueNextWeek.Take(Shown))
+        {
+            <div class="review-line link" @onclick="() => Actions.EditAsync(task)">
+                <MudIcon Icon="@Icons.Material.Outlined.Event" Size="Size.Small" />
+                <span class="review-line-text">@task.Title</span>
+                <span class="muted">@task.Due!.Value.ToString("ddd")</span>
+            </div>
+        }
+    </ReviewList>
+</MudPaper>
+
+@code {
+    private const int Shown = 6;
+
+    [Parameter, EditorRequired] public WeeklySummary Summary { get; set; } = default!;
+}

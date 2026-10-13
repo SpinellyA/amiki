@@ -1,0 +1,65 @@
+@*
+    Money for the week: in, out, what's left, the three biggest spending categories against the
+    week before, and any account due a balance check.
+*@
+@inject FinanceStore Store
+@inject CategoryStore Categories
+@inject FinanceActions Actions
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" Size="Size.Small" />
+        <span>Money</span>
+        <MudSpacer />
+        <MudLink Href="money" Typo="Typo.body2">Details →</MudLink>
+    </div>
+
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@Money.Format(Summary.Spent)</span><span class="stat-label">spent</span></div>
+        <div class="stat"><span class="stat-value">@Money.Format(Summary.Received)</span><span class="stat-label">received</span></div>
+        <div class="stat">
+            <span class="stat-value">@Money.Signed(Summary.Received - Summary.Spent)</span>
+            <span class="stat-label">@(Summary.Received >= Summary.Spent ? "saved" : "overspent")</span>
+        </div>
+    </div>
+
+    <ReviewList Title="Where most of it went" Empty="No spending this week." Count="Summary.TopSpending.Count" Shown="3">
+        @foreach (var c in Summary.TopSpending)
+        {
+            var change = c.ThisWeek - c.LastWeek;
+            <div class="review-line">
+                <MudIcon Icon="@Categories.IconOf(c.Name, TxKind.Expense)" Size="Size.Small" />
+                <span class="review-line-text">@c.Name</span>
+                <span class="review-amount">@Money.Format(c.ThisWeek)</span>
+                <span class="review-change @(change > 0 ? "up" : change < 0 ? "down" : "")"
+                      title="@($"{Money.Format(c.LastWeek)} the week before")">
+                    @(change == 0 ? "same" : $"{(change > 0 ? "▲" : "▼")} {Money.Format(Math.Abs(change))}")
+                </span>
+            </div>
+        }
+    </ReviewList>
+
+    @if (Unchecked.Count > 0)
+    {
+        <ReviewList Title="Due a balance check" Count="Unchecked.Count">
+            @foreach (var finding in Unchecked)
+            {
+                <div class="review-line">
+                    <MudIcon Icon="@Icons.Material.Outlined.FactCheck" Size="Size.Small" />
+                    <span class="review-line-text">@finding.Message</span>
+                </div>
+            }
+            <div class="px-4 pt-1">
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FactCheck"
+                           OnClick="() => Actions.CheckBalancesAsync()">Check balances</MudButton>
+            </div>
+        </ReviewList>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public WeeklySummary Summary { get; set; } = default!;
+
+    // The self-check's "info" findings are exactly the accounts not checked recently.
+    private List<Finding> Unchecked => FinanceAudit.Run(Store).Where(f => f.Level == FindingLevel.Info).ToList();
+}

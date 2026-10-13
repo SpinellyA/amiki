@@ -1,0 +1,26 @@
+@* A titled group of lines inside a review card, with a count and a "+N more" when it's cut short. *@
+
+<div class="review-group">
+    <div class="review-group-head @(Danger ? "danger" : "")">
+        <span>@Title</span><span class="muted">@Count</span>
+    </div>
+    @if (Count == 0 && Empty is not null)
+    {
+        <div class="review-empty muted">@Empty</div>
+    }
+    @ChildContent
+    @if (Count > Shown)
+    {
+        <div class="review-more muted">+@(Count - Shown) more</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public int Count { get; set; }
+    /// <summary>How many lines the card shows before "+N more".</summary>
+    [Parameter] public int Shown { get; set; } = 6;
+    [Parameter] public string? Empty { get; set; }
+    [Parameter] public bool Danger { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

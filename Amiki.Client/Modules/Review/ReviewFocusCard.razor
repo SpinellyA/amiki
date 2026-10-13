@@ -1,0 +1,51 @@
+@*
+    Pomodoro focus rounds for each day of the week. The timer runs on each device separately, so
+    these are this device's rounds.
+*@
+@implements IDisposable
+@inject PomodoroPrefs Prefs
+@inject PomodoroTimer Timer
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Timer" Size="Size.Small" />
+        <span>Focus</span>
+        <MudSpacer />
+        <MudLink Href="pomodoro" Typo="Typo.body2">Timer →</MudLink>
+    </div>
+    @{
+        var days = Week.Days.Select(d => (Day: d, Rounds: Prefs.FocusRoundsOn(d))).ToList();
+        var max = Math.Max(1, days.Max(d => d.Rounds));
+        var total = days.Sum(d => d.Rounds);
+    }
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@total</span><span class="stat-label">focus rounds</span></div>
+        <div class="stat"><span class="stat-value">@FocusTime(total)</span><span class="stat-label">focused, roughly</span></div>
+    </div>
+    <div class="bars" role="img" aria-label="@($"Focus rounds per day: {string.Join(", ", days.Select(d => $"{d.Day:ddd} {d.Rounds}"))}")">
+        @foreach (var (day, rounds) in days)
+        {
+            <div class="bar-col">
+                <span class="bar-count">@(rounds > 0 ? rounds : "")</span>
+                <div class="bar @(day == DateTime.Today ? "today" : "")" style="height: @(rounds * 100 / max)%"></div>
+                <span class="bar-label">@day.ToString("ddd")[..2]</span>
+            </div>
+        }
+    </div>
+    <MudText Typo="Typo.caption" Class="muted px-4 d-block">Counted on this device. Each device keeps its own timer.</MudText>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public WeekRange Week { get; set; }
+
+    // Uses the current focus length, so it's an estimate if you changed it during the week.
+    private string FocusTime(int rounds)
+    {
+        var minutes = rounds * Timer.Settings.FocusMinutes;
+        return minutes >= 60 ? $"{minutes / 60.0:0.#} h" : $"{minutes} min";
+    }
+
+    protected override void OnInitialized() => Timer.Finished += OnFinished;
+    public void Dispose() => Timer.Finished -= OnFinished;
+    private void OnFinished(PomodoroPhase _) => InvokeAsync(StateHasChanged);
+}

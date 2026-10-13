@@ -1,0 +1,48 @@
+@*
+    Ideas for the week: what you captured, what you finished, and parked ideas that have sat
+    untouched for a month, each with a quick "start it" or "let it go".
+*@
+@inject IdeaActions Actions
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" />
+        <span>Ideas</span>
+        <MudSpacer />
+        <MudLink Href="ideas" Typo="Typo.body2">All ideas →</MudLink>
+    </div>
+
+    <div class="stat-row">
+        <div class="stat"><span class="stat-value">@Summary.IdeasCaptured.Count</span><span class="stat-label">captured</span></div>
+        <div class="stat"><span class="stat-value">@Summary.IdeasFinished.Count</span><span class="stat-label">finished</span></div>
+    </div>
+
+    @if (Summary.IdeasFinished.Count > 0)
+    {
+        <ReviewList Title="Finished" Count="Summary.IdeasFinished.Count">
+            @foreach (var idea in Summary.IdeasFinished.Take(6))
+            {
+                <div class="review-line done">
+                    <MudIcon Icon="@IdeaStatusLook.Icon(IdeaStatus.Done)" Size="Size.Small" />
+                    <span class="review-line-text">@idea.Text</span>
+                </div>
+            }
+        </ReviewList>
+    }
+
+    <ReviewList Title="Parked over a month: still want these?" Empty="No old parked ideas. Nice." Count="Summary.StaleParked.Count" Shown="5">
+        @foreach (var idea in Summary.StaleParked.Take(5))
+        {
+            <div class="review-line">
+                <MudIcon Icon="@IdeaStatusLook.Icon(IdeaStatus.Parked)" Size="Size.Small" />
+                <span class="review-line-text" title="@idea.Text">@idea.Text</span>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="() => Actions.MakeTaskAsync(idea)">Start</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => Actions.Archive(idea)">Let go</MudButton>
+            </div>
+        }
+    </ReviewList>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public WeeklySummary Summary { get; set; } = default!;
+}

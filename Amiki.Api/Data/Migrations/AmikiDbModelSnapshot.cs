@@ -466,6 +466,36 @@ namespace Amiki.Api.Data.Migrations
                     b.ToTable("inbox_items", (string)null);
                 });
 
+            modelBuilder.Entity("Amiki.Modules.Review.WeeklyNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ToChange")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("WeekStart")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("WentWell")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WeekStart")
+                        .IsUnique();
+
+                    b.ToTable("weekly_notes", (string)null);
+                });
+
             modelBuilder.Entity("Amiki.Modules.Tasks.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")

@@ -1,0 +1,85 @@
+﻿@page "/review"
+@implements IDisposable
+@inject InboxStore Inbox
+@inject TaskStore Tasks
+@inject IdeaStore Ideas
+@inject FinanceStore Finance
+@inject WeeklyNoteStore Notes
+
+<PageTitle>Weekly review · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Weekly review</MudText>
+        <MudText Typo="Typo.body2" Class="muted">@(_week.IsCurrent ? "This week" : "Week of") @_week.Label. A few minutes to look back before the next one starts.</MudText>
+    </div>
+    <div class="head-actions review-weeks">
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" aria-label="Previous week" OnClick="() => _week = _week.Previous" />
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="_week.IsCurrent" OnClick="() => _week = WeekRange.Current">This week</MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" aria-label="Next week" Disabled="_week.IsCurrent" OnClick="() => _week = _week.Next" />
+    </div>
+</div>
+
+@{ var summary = Build(); }
+
+@if (summary.InboxWaiting > 0)
+{
+    <div class="review-callout" role="status">
+        <MudIcon Icon="@Icons.Material.Outlined.Inbox" Size="Size.Small" />
+        <span>@summary.InboxWaiting thing@(summary.InboxWaiting == 1 ? "" : "s") still in your Inbox from capturing on the go.</span>
+        <MudSpacer />
+        <MudButton Href="inbox" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Triage now</MudButton>
+    </div>
+}
+
+<div class="review-stats">
+    <ReviewStat Value="@summary.TasksDone.Count.ToString()" Label="tasks done" />
+    <ReviewStat Value="@summary.Overdue.Count.ToString()" Label="overdue now" Danger="summary.Overdue.Count > 0" />
+    <ReviewStat Value="@Money.Format(summary.Spent)" Label="spent" Hint="@SpendHint(summary)" />
+    <ReviewStat Value="@summary.IdeasFinished.Count.ToString()" Label="ideas finished" />
+</div>
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="6"><ReviewTasksCard Summary="summary" /></MudItem>
+    <MudItem xs="12" md="6"><ReviewMoneyCard Summary="summary" /></MudItem>
+    <MudItem xs="12" md="6"><ReviewIdeasCard Summary="summary" /></MudItem>
+    <MudItem xs="12" md="6"><ReviewFocusCard Week="_week" /></MudItem>
+    <MudItem xs="12"><ReviewNotes @key="_week" Week="_week" OnPickWeek="w => _week = w" /></MudItem>
+</MudGrid>
+
+@code {
+    private WeekRange _week = WeekRange.Current;
+
+    protected override void OnInitialized()
+    {
+        Inbox.Changed += OnChanged;
+        Tasks.Changed += OnChanged;
+        Ideas.Changed += OnChanged;
+        Finance.Changed += OnChanged;
+        Notes.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Inbox.Changed -= OnChanged;
+        Tasks.Changed -= OnChanged;
+        Ideas.Changed -= OnChanged;
+        Finance.Changed -= OnChanged;
+        Notes.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private WeeklySummary Build() => WeeklySummary.Build(
+        _week, DateTime.Today, Inbox.All, Tasks.All, Ideas.All,
+        Finance.FlowsBetween(_week.Start, _week.End).ToList(),
+        Finance.FlowsBetween(_week.Previous.Start, _week.Previous.End).ToList());
+
+    private static string? SpendHint(WeeklySummary s)
+    {
+        if (s.SpentLastWeek == 0) return s.Spent == 0 ? null : "nothing the week before";
+        var change = s.Spent - s.SpentLastWeek;
+        return change == 0 ? "same as the week before"
+            : $"{(change > 0 ? "▲" : "▼")} {Money.Format(Math.Abs(change))} vs the week before";
+    }
+}

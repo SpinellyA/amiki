@@ -3,6 +3,7 @@ using Amiki.Core;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
+using Amiki.Modules.Review;
 using Amiki.Modules.Tasks;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     public DbSet<BalanceCheck> BalanceChecks => Set<BalanceCheck>();
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
     public DbSet<Plan> Plans => Set<Plan>();
+    public DbSet<WeeklyNote> WeeklyNotes => Set<WeeklyNote>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -102,6 +104,14 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             entry.Property(e => e.After).HasColumnType("jsonb");
             entry.HasIndex(e => e.At);
             entry.HasIndex(e => e.EntityId);
+        });
+
+        model.Entity<WeeklyNote>(note =>
+        {
+            note.ToTable("weekly_notes");
+            note.Property(n => n.WentWell).HasMaxLength(WeeklyNote.MaxLength);
+            note.Property(n => n.ToChange).HasMaxLength(WeeklyNote.MaxLength);
+            note.HasIndex(n => n.WeekStart).IsUnique();
         });
 
         // A plan is saved and loaded as one unit, so its items live in a jsonb column on the

@@ -11,10 +11,13 @@ public sealed class PomodoroPrefs(IJSRuntime js, PomodoroTimer timer)
 {
     private const string SettingsKey = "amiki.pomodoro.settings";
     private const string CountKey = "amiki.pomodoro.today";
+    private const string HistoryKey = "amiki.pomodoro.history";
+    private const int HistoryDays = 90;
 
     private sealed record DayCount(DateTime Day, int Count);
 
     private bool _loaded;
+    private Dictionary<string, int> _history = [];
 
     /// <summary>Loads saved settings into the timer once, and from then on saves the count as rounds finish.</summary>
     public void EnsureLoaded()
@@ -23,8 +26,31 @@ public sealed class PomodoroPrefs(IJSRuntime js, PomodoroTimer timer)
         _loaded = true;
         if (Read<PomodoroSettings>(SettingsKey) is { } settings) timer.Apply(settings);
         if (Read<DayCount>(CountKey) is { } count) timer.RestoreCount(count.Day, count.Count);
-        timer.Finished += _ => Write(CountKey, new DayCount(DateTime.Today, timer.FocusSessionsToday));
+        _history = Read<Dictionary<string, int>>(HistoryKey) ?? [];
+        // Rounds done today before the history existed still count.
+        if (timer.FocusSessionsToday > 0) _history.TryAdd(Key(DateTime.Today), timer.FocusSessionsToday);
+        timer.Finished += OnFinished;
     }
+
+    /// <summary>Focus rounds finished on this device on that day (kept for the last 90 days).</summary>
+    public int FocusRoundsOn(DateTime day)
+    {
+        EnsureLoaded();
+        return _history.GetValueOrDefault(Key(day));
+    }
+
+    private void OnFinished(PomodoroPhase finished)
+    {
+        Write(CountKey, new DayCount(DateTime.Today, timer.FocusSessionsToday));
+        if (finished != PomodoroPhase.Focus) return;
+
+        _history[Key(DateTime.Today)] = timer.FocusSessionsToday;
+        var oldest = Key(DateTime.Today.AddDays(-HistoryDays));
+        foreach (var old in _history.Keys.Where(k => string.CompareOrdinal(k, oldest) < 0).ToList()) _history.Remove(old);
+        Write(HistoryKey, _history);
+    }
+
+    private static string Key(DateTime day) => day.ToString("yyyy-MM-dd");
 
     public void Save(PomodoroSettings settings)
     {

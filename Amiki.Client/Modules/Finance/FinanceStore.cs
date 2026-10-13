@@ -46,9 +46,16 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
     /// transfer fees as spending. Moving money between your own accounts isn't spending, so the
     /// transfers themselves don't appear.
     /// </summary>
-    public IEnumerable<Transaction> FlowsInMonth(DateTime month) =>
-        InMonth(month).Where(t => !Category.IsCorrection(t.Category))
-            .Concat(TransfersInMonth(month).Where(t => t.Fee > 0).Select(t => new Transaction
+    public IEnumerable<Transaction> FlowsInMonth(DateTime month)
+    {
+        var start = new DateTime(month.Year, month.Month, 1);
+        return FlowsBetween(start, start.AddMonths(1));
+    }
+
+    /// <summary>The same as <see cref="FlowsInMonth"/>, for any dates (<paramref name="end"/> not included).</summary>
+    public IEnumerable<Transaction> FlowsBetween(DateTime start, DateTime end) =>
+        _items.Where(t => t.Date >= start && t.Date < end && !Category.IsCorrection(t.Category))
+            .Concat(_transfers.Where(t => t.Date >= start && t.Date < end && t.Fee > 0).Select(t => new Transaction
             {
                 Id = t.Id, Date = t.Date, Amount = t.Fee, Kind = TxKind.Expense, Category = Category.Fees,
                 Account = t.From, Note = $"Fee: {t.From} → {t.To}", CreatedAt = t.CreatedAt,

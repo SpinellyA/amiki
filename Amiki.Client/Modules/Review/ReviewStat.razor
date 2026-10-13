@@ -1,0 +1,17 @@
+@* One headline number at the top of the review. *@
+
+<MudPaper Outlined="true" Class="review-stat">
+    <span class="stat-value @(Danger ? "danger" : "")">@Value</span>
+    <span class="stat-label">@Label</span>
+    @if (Hint is not null)
+    {
+        <span class="review-stat-hint muted">@Hint</span>
+    }
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public bool Danger { get; set; }
+}
