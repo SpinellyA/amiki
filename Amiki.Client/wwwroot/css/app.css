@@ -504,10 +504,97 @@ button.sync-status {
     cursor: grab;
 }
 
+.idea-card[draggable="false"] { cursor: default; }
 .idea-card:active { cursor: grabbing; }
+.idea-card[draggable="false"]:active { cursor: default; }
 .idea-card.inprogress { --idea: var(--mud-palette-primary); }
-.idea-card.done { --idea: var(--mud-palette-success); }
-.idea-card.done .idea-text { color: var(--mud-palette-text-secondary); }
+.idea-card.done { --idea: var(--mud-palette-success); padding-top: 0.6rem; }
+
+/* Done ideas are finished business: two lines of text, the rest on hover (title) or in Edit. */
+.idea-card.done .idea-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    font-size: 0.875rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.idea-tasks-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+}
+
+.idea-tasks-summary .mud-icon-root { font-size: 0.95rem; color: var(--mud-palette-success); }
+
+.idea-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--idea);
+}
+
+.idea-status .mud-icon-root { font-size: 0.9rem; }
+
+.idea-column-note { padding: 0 0.5rem; font-size: 0.75rem; }
+
+/* Cards layout */
+.idea-grid {
+    columns: 3 250px;
+    column-gap: 1rem;
+}
+
+.idea-grid .idea-card { break-inside: avoid; }
+
+/* Layout picker + archive link */
+.idea-viewbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 599px) {
+    .idea-layouts { flex: 1 1 100%; }
+    .idea-layouts .mud-toggle-item { flex: 1 1 0; min-width: 0; }
+}
+
+/* List layout and archive: one line per idea */
+.idea-row {
+    --idea: var(--mud-palette-warning);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.5rem 0.35rem 0.85rem;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.task-list > .idea-row:first-child { border-top: none; }
+.idea-row:hover { background: var(--mud-palette-action-default-hover); }
+.idea-row.inprogress { --idea: var(--mud-palette-primary); }
+.idea-row.done { --idea: var(--mud-palette-success); }
+
+.idea-row-status { display: grid; place-items: center; flex-shrink: 0; color: var(--idea); }
+.idea-row-main { flex: 1; min-width: 0; padding: 0.2rem 0; cursor: pointer; }
+
+.idea-row-text {
+    font-size: 0.925rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.idea-row.done .idea-row-text { color: var(--mud-palette-text-secondary); }
 
 .idea-tasks {
     margin: 0.5rem 0 0 -0.6rem;

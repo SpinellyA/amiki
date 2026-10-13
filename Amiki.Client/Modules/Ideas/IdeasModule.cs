@@ -9,6 +9,7 @@ public static class IdeasModule
         services.AddSingleton<IdeaStore>();
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<IdeaStore>());
         services.AddScoped<IdeaActions>();
+        services.AddSingleton<IdeaLayoutPreference>();
         services.AddSingleton(new ModuleInfo(
             Name: "Ideas",
             Icon: Icons.Material.Outlined.Lightbulb,

@@ -421,7 +421,13 @@ namespace Amiki.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DoneAt")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Status")

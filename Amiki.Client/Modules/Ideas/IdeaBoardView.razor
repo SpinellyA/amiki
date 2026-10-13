@@ -1,0 +1,84 @@
+@*
+    Board layout: Parked | In progress | Done. Drag a card to another column to move it. Phones
+    show one column at a time, picked with the switch above the board.
+*@
+@inject IdeaActions Actions
+
+<MudToggleGroup T="IdeaStatus" @bind-Value="_phoneColumn" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="idea-column-switch">
+    @foreach (var status in Columns)
+    {
+        <MudToggleItem Value="status" Text="@($"{IdeaStatusLook.Name(status)} {In(status).Count()}")" />
+    }
+</MudToggleGroup>
+
+<div class="idea-board">
+    @foreach (var status in Columns)
+    {
+        var ideas = In(status).ToList();
+        <section class="@ColumnClass(status)" aria-label="@IdeaStatusLook.Name(status)"
+                 @ondragenter="() => _dropTarget = status" @ondragover:preventDefault="true" @ondrop="() => Drop(status)">
+            <div class="group-head idea-column-head">
+                <MudIcon Icon="@IdeaStatusLook.Icon(status)" Size="Size.Small" />
+                <span>@IdeaStatusLook.Name(status)</span>
+                <span class="muted">@ideas.Count</span>
+            </div>
+            @if (ideas.Count == 0)
+            {
+                <div class="idea-column-empty muted">@EmptyText(status)</div>
+            }
+            @foreach (var idea in ideas)
+            {
+                <IdeaCard @key="idea.Id" Item="idea" Draggable="true" OnTagClick="OnTagClick"
+                          OnDragStart="i => _dragging = i" OnDragEnd="EndDrag" />
+            }
+            @if (status == IdeaStatus.Done && ideas.Count > 0)
+            {
+                <div class="idea-column-note muted">Done ideas move to the archive @((int)Idea.ArchiveDoneAfter.TotalDays) days after they're finished.</div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private static readonly IdeaStatus[] Columns = Enum.GetValues<IdeaStatus>();
+
+    [Parameter, EditorRequired] public IReadOnlyList<Idea> Ideas { get; set; } = [];
+    [Parameter] public EventCallback<string> OnTagClick { get; set; }
+
+    private IdeaStatus _phoneColumn = IdeaStatus.Parked;
+    private Idea? _dragging;
+    private IdeaStatus? _dropTarget;
+
+    /// <summary>Shows the Parked column on phones (e.g. after capturing a new idea, so you see it land).</summary>
+    public void ShowParked() => _phoneColumn = IdeaStatus.Parked;
+
+    // Done ideas newest-finished first; the others newest-captured first.
+    private IEnumerable<Idea> In(IdeaStatus status) =>
+        status == IdeaStatus.Done
+            ? Ideas.Where(i => i.Status == status).OrderByDescending(i => i.DoneAt ?? i.CreatedAt)
+            : Ideas.Where(i => i.Status == status).OrderByDescending(i => i.CreatedAt);
+
+    private string ColumnClass(IdeaStatus status) =>
+        "idea-column"
+        + (status == _phoneColumn ? " phone-shown" : "")
+        + (_dragging is not null && _dropTarget == status && _dragging.Status != status ? " drop-target" : "");
+
+    private static string EmptyText(IdeaStatus status) => status switch
+    {
+        IdeaStatus.Parked => "New ideas land here.",
+        IdeaStatus.InProgress => "Make a task from an idea, or drag one here.",
+        _ => "Finished ideas end up here.",
+    };
+
+    private void Drop(IdeaStatus status)
+    {
+        if (_dragging is { } idea && idea.Status != status) Actions.Move(idea, status);
+        EndDrag();
+    }
+
+    private void EndDrag()
+    {
+        _dragging = null;
+        _dropTarget = null;
+    }
+}

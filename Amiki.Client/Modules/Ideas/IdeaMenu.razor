@@ -1,0 +1,19 @@
+@* The "⋯" menu for an idea, shared by every layout: edit, make a task, move, archive, delete. *@
+@inject IdeaActions Actions
+
+<MudMenu Icon="@Icons.Material.Filled.MoreHoriz" Size="Size.Small" Dense="true" aria-label="Idea actions">
+    <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Actions.EditAsync(Item)">Edit</MudMenuItem>
+    <MudMenuItem Icon="@Icons.Material.Outlined.TaskAlt" OnClick="() => Actions.MakeTaskAsync(Item)">Make a task from this</MudMenuItem>
+    <MudDivider />
+    @foreach (var status in Enum.GetValues<IdeaStatus>().Where(s => s != Item.Status))
+    {
+        <MudMenuItem Icon="@IdeaStatusLook.Icon(status)" OnClick="() => Actions.Move(Item, status)">Move to @IdeaStatusLook.Name(status)</MudMenuItem>
+    }
+    <MudDivider />
+    <MudMenuItem Icon="@Icons.Material.Outlined.Archive" OnClick="() => Actions.Archive(Item)">Archive</MudMenuItem>
+    <MudMenuItem Icon="@Icons.Material.Outlined.DeleteOutline" OnClick="() => Actions.Delete(Item)">Delete</MudMenuItem>
+</MudMenu>
+
+@code {
+    [Parameter, EditorRequired] public Idea Item { get; set; } = default!;
+}

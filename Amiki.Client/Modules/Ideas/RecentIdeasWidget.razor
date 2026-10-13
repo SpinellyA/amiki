@@ -9,7 +9,7 @@
         <MudLink Href="ideas" Typo="Typo.body2">All ideas →</MudLink>
     </div>
     <div class="task-list mt-3">
-        @foreach (var idea in Store.All.OrderByDescending(i => i.CreatedAt).Take(5))
+        @foreach (var idea in Store.Active.OrderByDescending(i => i.CreatedAt).Take(5))
         {
             <div class="inbox-row">
                 <div class="inbox-main">

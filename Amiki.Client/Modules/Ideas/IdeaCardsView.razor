@@ -1,0 +1,20 @@
+@* Cards layout: every idea in one flowing grid, in-progress first, each labelled with its status. *@
+
+<div class="idea-grid">
+    @foreach (var idea in Ideas.OrderBy(i => Rank(i.Status)).ThenByDescending(i => i.CreatedAt))
+    {
+        <IdeaCard @key="idea.Id" Item="idea" ShowStatus="true" OnTagClick="OnTagClick" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Idea> Ideas { get; set; } = [];
+    [Parameter] public EventCallback<string> OnTagClick { get; set; }
+
+    private static int Rank(IdeaStatus status) => status switch
+    {
+        IdeaStatus.InProgress => 0,
+        IdeaStatus.Parked => 1,
+        _ => 2,
+    };
+}

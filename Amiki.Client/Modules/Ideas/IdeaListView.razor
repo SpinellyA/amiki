@@ -1,0 +1,28 @@
+@* List layout: one line per idea, grouped In progress → Parked → Done. Fits the most on screen. *@
+
+@foreach (var status in Order)
+{
+    var ideas = Ideas.Where(i => i.Status == status)
+        .OrderByDescending(i => status == IdeaStatus.Done ? i.DoneAt ?? i.CreatedAt : i.CreatedAt)
+        .ToList();
+    if (ideas.Count == 0) continue;
+    <div class="task-group">
+        <div class="group-head">
+            <span>@IdeaStatusLook.Name(status)</span><span class="muted">@ideas.Count</span>
+        </div>
+        <MudPaper Outlined="true" Class="task-list">
+            @foreach (var idea in ideas)
+            {
+                <IdeaRow @key="idea.Id" Item="idea" OnTagClick="OnTagClick" />
+            }
+        </MudPaper>
+    </div>
+}
+
+@code {
+    // What you're working on first; finished ideas last.
+    private static readonly IdeaStatus[] Order = [IdeaStatus.InProgress, IdeaStatus.Parked, IdeaStatus.Done];
+
+    [Parameter, EditorRequired] public IReadOnlyList<Idea> Ideas { get; set; } = [];
+    [Parameter] public EventCallback<string> OnTagClick { get; set; }
+}

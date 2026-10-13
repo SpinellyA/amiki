@@ -1,0 +1,44 @@
+@*
+    One idea as a single line (List layout and the archive): status, text (cut off at one line;
+    click to open it), tags, task progress, date, and either the idea menu or Restore.
+*@
+@inject TaskStore Tasks
+@inject IdeaActions Actions
+
+<div class="idea-row @Item.Status.ToString().ToLowerInvariant()">
+    <span class="idea-row-status" title="@IdeaStatusLook.Name(Item.Status)">
+        <MudIcon Icon="@IdeaStatusLook.Icon(Item.Status)" Size="Size.Small" />
+    </span>
+    <div class="idea-row-main" @onclick="() => Actions.EditAsync(Item)">
+        <div class="idea-row-text" title="@Item.Text">@Item.Text</div>
+        <div class="task-meta">
+            @foreach (var tag in Item.Tags)
+            {
+                <span class="idea-tag" @onclick="() => OnTagClick.InvokeAsync(tag)" @onclick:stopPropagation="true">#@tag</span>
+            }
+            @if (Linked.Count > 0)
+            {
+                <span><MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Size="Size.Small" /> @Linked.Count(t => t.IsDone)/@Linked.Count</span>
+            }
+            <span>@IdeaDates.Label(Item)</span>
+        </div>
+    </div>
+    @if (Item.IsArchived)
+    {
+        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Unarchive"
+                   OnClick="() => Actions.Restore(Item)">Restore</MudButton>
+        <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small" aria-label="Delete idea"
+                       OnClick="() => Actions.Delete(Item)" />
+    }
+    else
+    {
+        <IdeaMenu Item="Item" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Idea Item { get; set; } = default!;
+    [Parameter] public EventCallback<string> OnTagClick { get; set; }
+
+    private List<TaskItem> Linked => Tasks.ForIdea(Item.Id).ToList();
+}

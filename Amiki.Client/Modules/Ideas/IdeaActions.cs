@@ -42,6 +42,19 @@ public sealed class IdeaActions(IdeaStore store, TaskActions tasks, IDialogServi
         store.SetStatus(idea, IdeaStatus.InProgress);
     }
 
+    public void Archive(Idea idea)
+    {
+        var before = store.Get(idea.Id) ?? idea;
+        store.Archive(idea);
+        WithUndo("Archived", () => store.Upsert(before));
+    }
+
+    public void Restore(Idea idea)
+    {
+        store.Restore(idea);
+        snackbar.Add($"Back on the board under {Name(idea.Status)}", Severity.Normal);
+    }
+
     public void Delete(Idea idea)
     {
         store.Remove(idea);

@@ -2,28 +2,38 @@
 @implements IDisposable
 @inject IdeaStore Store
 @inject TaskStore Tasks
-@inject IdeaActions Actions
+@inject IdeaLayoutPreference LayoutPreference
 
 <PageTitle>Ideas · Amiki</PageTitle>
 
 <div class="page-head">
     <div>
-        <MudText Typo="Typo.h4">Ideas</MudText>
+        <MudText Typo="Typo.h4">@(_showArchive ? "Archived ideas" : "Ideas")</MudText>
         <MudText Typo="Typo.body2" Class="muted">
-            @Count(IdeaStatus.Parked) parked · @Count(IdeaStatus.InProgress) in progress · @Count(IdeaStatus.Done) done.
-            Make a task from an idea to start it; finishing its tasks finishes the idea.
+            @if (_showArchive)
+            {
+                @:Done ideas land here @((int)Idea.ArchiveDoneAfter.TotalDays) days after they're finished, plus any you archived yourself. Restore one to put it back on the board.
+            }
+            else
+            {
+                @($"{Count(IdeaStatus.Parked)} parked · {Count(IdeaStatus.InProgress)} in progress · {Count(IdeaStatus.Done)} done. ")
+                @:Make a task from an idea to start it; finishing its tasks finishes the idea.
+            }
         </MudText>
     </div>
 </div>
 
-<MudTextField T="string" @bind-Value="_draft" Immediate="true" OnKeyDown="OnKey"
-              Placeholder="Jot an idea… #tags optional" Variant="Variant.Outlined"
-              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Lightbulb" />
+@if (!_showArchive)
+{
+    <MudTextField T="string" @bind-Value="_draft" Immediate="true" OnKeyDown="OnKey"
+                  Placeholder="Jot an idea… #tags optional" Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Lightbulb" />
+}
 
 <div class="toolbar">
     <MudChipSet T="string" @bind-SelectedValue="_tag" SelectionMode="SelectionMode.ToggleSelection"
                 CheckMark="false" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small">
-        @foreach (var tag in Store.Tags)
+        @foreach (var tag in Source.SelectMany(i => i.Tags).Distinct().Order())
         {
             <MudChip Value="tag">#@tag</MudChip>
         }
@@ -33,50 +43,80 @@
                   Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="toolbar-field" />
 </div>
 
-@* Phones show one column at a time; this picks which. Hidden on wider screens, where all three fit. *@
-<MudToggleGroup T="IdeaStatus" @bind-Value="_phoneColumn" Color="Color.Primary" Size="Size.Small" Outlined="true" Class="idea-column-switch">
-    @foreach (var status in Columns)
+<div class="idea-viewbar">
+    @if (_showArchive)
     {
-        <MudToggleItem Value="status" Text="@($"{IdeaStatusLook.Name(status)} {Visible(status).Count()}")" />
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="() => _showArchive = false">Back to ideas</MudButton>
     }
-</MudToggleGroup>
-
-<div class="idea-board">
-    @foreach (var status in Columns)
+    else
     {
-        var ideas = Visible(status).ToList();
-        <section class="@ColumnClass(status)" aria-label="@IdeaStatusLook.Name(status)"
-                 @ondragenter="() => _dropTarget = status" @ondragover:preventDefault="true" @ondrop="() => Drop(status)">
-            <div class="group-head idea-column-head">
-                <MudIcon Icon="@IdeaStatusLook.Icon(status)" Size="Size.Small" />
-                <span>@IdeaStatusLook.Name(status)</span>
-                <span class="muted">@ideas.Count</span>
-            </div>
-            @if (ideas.Count == 0)
+        <MudToggleGroup T="IdeaLayout" Value="_layout" ValueChanged="SetLayout" Color="Color.Primary" Size="Size.Small" Outlined="true"
+                        Class="idea-layouts" aria-label="Layout">
+            @foreach (var option in Enum.GetValues<IdeaLayout>())
             {
-                <div class="idea-column-empty muted">@EmptyText(status)</div>
+                <MudToggleItem Value="option">
+                    <MudIcon Icon="@LayoutIcon(option)" Size="Size.Small" Class="mr-1" /> @option
+                </MudToggleItem>
             }
-            @foreach (var idea in ideas)
-            {
-                <IdeaCard @key="idea.Id" Item="idea" OnTagClick="t => _tag = t"
-                          OnDragStart="i => _dragging = i" OnDragEnd="() => { _dragging = null; _dropTarget = null; }" />
-            }
-        </section>
+        </MudToggleGroup>
+        <MudSpacer />
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Inventory" OnClick="() => _showArchive = true">
+            Archived (@Store.Archived.Count())
+        </MudButton>
     }
 </div>
 
-@code {
-    private static readonly IdeaStatus[] Columns = Enum.GetValues<IdeaStatus>();
+@{ var shown = Filtered().ToList(); }
+@if (shown.Count == 0)
+{
+    <div class="empty">
+        <MudIcon Icon="@(_showArchive ? Icons.Material.Outlined.Inventory : Icons.Material.Outlined.Lightbulb)" Size="Size.Large" />
+        <MudText Typo="Typo.body1">@EmptyMessage</MudText>
+    </div>
+}
+else if (_showArchive)
+{
+    <MudPaper Outlined="true" Class="task-list">
+        @foreach (var idea in shown)
+        {
+            <IdeaRow @key="idea.Id" Item="idea" OnTagClick="t => _tag = t" />
+        }
+    </MudPaper>
+}
+else
+{
+    switch (_layout)
+    {
+        case IdeaLayout.List:
+            <IdeaListView Ideas="shown" OnTagClick="t => _tag = t" />
+            break;
+        case IdeaLayout.Cards:
+            <IdeaCardsView Ideas="shown" OnTagClick="t => _tag = t" />
+            break;
+        default:
+            <IdeaBoardView @ref="_board" Ideas="shown" OnTagClick="t => _tag = t" />
+            break;
+    }
+}
 
+@code {
     private string _draft = "";
     private string? _tag;
     private string? _search;
-    private IdeaStatus _phoneColumn = IdeaStatus.Parked;
-    private Idea? _dragging;
-    private IdeaStatus? _dropTarget;
+    private bool _showArchive;
+    private IdeaLayout _layout;
+    private IdeaBoardView? _board;
+
+    private IEnumerable<Idea> Source => _showArchive ? Store.Archived : Store.Active;
+
+    private string EmptyMessage =>
+        _tag is not null || !string.IsNullOrWhiteSpace(_search) ? "No ideas match."
+        : _showArchive ? "Nothing archived yet."
+        : "No ideas yet. The next one goes here.";
 
     protected override void OnInitialized()
     {
+        _layout = LayoutPreference.Get();
         Store.Changed += OnChanged;
         Tasks.Changed += OnChanged;
     }
@@ -89,38 +129,30 @@
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    private int Count(IdeaStatus status) => Store.All.Count(i => i.Status == status);
+    private int Count(IdeaStatus status) => Store.Active.Count(i => i.Status == status);
 
-    private IEnumerable<Idea> Visible(IdeaStatus status) => Store.All
-        .Where(i => i.Status == status)
+    private IEnumerable<Idea> Filtered() => Source
         .Where(i => _tag is null || i.Tags.Contains(_tag))
-        .Where(i => string.IsNullOrWhiteSpace(_search) || i.ToEditableText().Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .OrderByDescending(i => i.CreatedAt);
+        .Where(i => string.IsNullOrWhiteSpace(_search) || i.ToEditableText().Contains(_search, StringComparison.OrdinalIgnoreCase));
 
-    private string ColumnClass(IdeaStatus status) =>
-        "idea-column"
-        + (status == _phoneColumn ? " phone-shown" : "")
-        + (_dragging is not null && _dropTarget == status && _dragging.Status != status ? " drop-target" : "");
-
-    private static string EmptyText(IdeaStatus status) => status switch
+    private void SetLayout(IdeaLayout layout)
     {
-        IdeaStatus.Parked => "New ideas land here.",
-        IdeaStatus.InProgress => "Make a task from an idea, or drag one here.",
-        _ => "Finished ideas end up here.",
-    };
-
-    private void Drop(IdeaStatus status)
-    {
-        if (_dragging is { } idea && idea.Status != status) Actions.Move(idea, status);
-        _dragging = null;
-        _dropTarget = null;
+        _layout = layout;
+        LayoutPreference.Set(layout);
     }
+
+    private static string LayoutIcon(IdeaLayout layout) => layout switch
+    {
+        IdeaLayout.List => Icons.Material.Outlined.ViewList,
+        IdeaLayout.Cards => Icons.Material.Outlined.GridView,
+        _ => Icons.Material.Outlined.ViewKanban,
+    };
 
     private void OnKey(KeyboardEventArgs e)
     {
         if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_draft)) return;
         Store.Upsert(Idea.Parse(_draft));
         _draft = "";
-        _phoneColumn = IdeaStatus.Parked; // so you see it land
+        _board?.ShowParked(); // so you see it land
     }
 }
