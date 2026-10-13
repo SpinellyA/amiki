@@ -1,0 +1,22 @@
+@* Five faces from rough to great. Tap the picked one again to clear it. *@
+
+<div class="mood-picker" role="radiogroup" aria-label="How was the day?">
+    @foreach (var mood in DiaryMood.All)
+    {
+        <button type="button" role="radio" aria-checked="@(Value == mood ? "true" : "false")" aria-label="@DiaryMood.Name(mood)"
+                title="@DiaryMood.Name(mood)" class="@($"mood-choice {DiaryMood.CssClass(mood)}{(Value == mood ? " picked" : "")}")"
+                @onclick="() => ValueChanged.InvokeAsync(Value == mood ? null : mood)">
+            <MudIcon Icon="@DiaryMood.Icon(mood)" />
+            @if (ShowLabels)
+            {
+                <span>@DiaryMood.Name(mood)</span>
+            }
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public int? Value { get; set; }
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+    [Parameter] public bool ShowLabels { get; set; } = true;
+}

@@ -1,0 +1,71 @@
+@* Past pages, newest first, with search. Picking one opens that day. *@
+@implements IDisposable
+@inject DiaryStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Small" />
+        <span>Past pages</span>
+    </div>
+    <div class="px-4 pt-2">
+        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search your diary" Clearable="true" Margin="Margin.Dense"
+                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+    </div>
+    @{ var entries = Matches().ToList(); }
+    @if (entries.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="muted px-4 py-3">@(string.IsNullOrWhiteSpace(_search) ? "Your pages will show up here." : "Nothing matches.")</MudText>
+    }
+    <div class="diary-list">
+        @foreach (var entry in entries.Take(_shown))
+        {
+            <button type="button" class="@($"diary-item{(entry.Day == Selected ? " selected" : "")}")" @onclick="() => OnPick.InvokeAsync(entry.Day)">
+                <span class="@($"diary-item-mood {DiaryMood.CssClass(entry.Mood)}")">
+                    @if (entry.Mood is { } mood)
+                    {
+                        <MudIcon Icon="@DiaryMood.Icon(mood)" Size="Size.Small" />
+                    }
+                </span>
+                <span class="diary-item-main">
+                    <span class="diary-item-day">@DiaryDays.Label(entry.Day)</span>
+                    <span class="diary-item-text muted">@Preview(entry)</span>
+                </span>
+            </button>
+        }
+    </div>
+    @if (entries.Count > _shown)
+    {
+        <div class="px-2 pb-1">
+            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => _shown += PageSize">Show older</MudButton>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private const int PageSize = 15;
+
+    [Parameter] public DateTime Selected { get; set; }
+    [Parameter] public EventCallback<DateTime> OnPick { get; set; }
+
+    private string? _search;
+    private int _shown = PageSize;
+
+    // Listens itself: its parameters rarely change, so the page re-rendering wouldn't refresh it.
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private IEnumerable<DiaryEntry> Matches() => Store.Written
+        .Where(e => string.IsNullOrWhiteSpace(_search) || e.Text.Contains(_search, StringComparison.CurrentCultureIgnoreCase));
+
+    // The bit around the search word when searching, otherwise the start of the page.
+    private string Preview(DiaryEntry entry)
+    {
+        var text = entry.Text.ReplaceLineEndings(" ").Trim();
+        if (text.Length == 0) return entry.Mood is { } m ? DiaryMood.Name(m) : "";
+        var at = string.IsNullOrWhiteSpace(_search) ? -1 : text.IndexOf(_search, StringComparison.CurrentCultureIgnoreCase);
+        var start = at > 30 ? at - 30 : 0;
+        var preview = text.Substring(start, Math.Min(120, text.Length - start));
+        return (start > 0 ? "…" : "") + preview + (start + preview.Length < text.Length ? "…" : "");
+    }
+}

@@ -1,0 +1,79 @@
+@page "/diary"
+@implements IDisposable
+@inject DiaryStore Store
+
+<PageTitle>Diary · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Diary</MudText>
+        <MudText Typo="Typo.body2" Class="muted">
+            @if (Store.Streak > 1)
+            {
+                @($"{Store.Streak} days in a row. ")
+            }
+            @(Store.Written.Count()) page@(Store.Written.Count() == 1 ? "" : "s") so far. Private: only you can sign in to Amiki.
+        </MudText>
+    </div>
+    <div class="head-actions review-weeks">
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" aria-label="Previous day" OnClick="() => Go(_day.AddDays(-1))" />
+        <span class="diary-day-label">@DiaryDays.Label(_day)</span>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" aria-label="Next day" Disabled="_day >= DateTime.Today" OnClick="() => Go(_day.AddDays(1))" />
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="_day == DateTime.Today" OnClick="() => Go(DateTime.Today)">Today</MudButton>
+    </div>
+</div>
+
+<div class="diary-layout">
+    <DiaryEditor @key="_day" Day="_day" />
+
+    <div class="diary-side">
+        <MudPaper Outlined="true" Class="widget diary-cal">
+            <div class="widget-head">
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Previous month" OnClick="() => _month = _month.AddMonths(-1)" />
+                <span class="diary-month">@_month.ToString("MMMM yyyy")</span>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Next month"
+                               Disabled="_month >= ThisMonth" OnClick="() => _month = _month.AddMonths(1)" />
+            </div>
+            <MonthCalendar TItem="DiaryEntry" Month="_month" Items="Store.Written" DateOf="e => e.Day" MaxPerDay="1"
+                           SelectedDate="_day" SelectedDateChanged="Go">
+                <ItemTemplate Context="entry">
+                    <span class="@($"diary-dot {DiaryMood.CssClass(entry.Mood)}")" title="@(entry.Mood is { } m ? DiaryMood.Name(m) : "Written")"></span>
+                </ItemTemplate>
+            </MonthCalendar>
+        </MudPaper>
+        <DiaryEntryList Selected="_day" OnPick="Go" />
+    </div>
+</div>
+
+@code {
+    private static DateTime ThisMonth => new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    /// <summary>Opens a given day, e.g. /diary?day=2026-10-12 (used by the weekly review).</summary>
+    [SupplyParameterFromQuery(Name = "day")] public string? DayParameter { get; set; }
+
+    private DateTime _day = DateTime.Today;
+    private DateTime _month = ThisMonth;
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private string? _appliedDayParameter;
+
+    // Only when the link itself changes: the layout re-renders the page now and then, and that
+    // mustn't pull you back to the linked day after you've moved to another.
+    protected override void OnParametersSet()
+    {
+        if (DayParameter == _appliedDayParameter) return;
+        _appliedDayParameter = DayParameter;
+        if (DateTime.TryParse(DayParameter, out var day)) Go(day);
+    }
+
+    // No pages for days that haven't happened yet.
+    private void Go(DateTime day)
+    {
+        if (day.Date > DateTime.Today) return;
+        _day = day.Date;
+        _month = new DateTime(_day.Year, _day.Month, 1);
+    }
+}

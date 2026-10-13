@@ -1,0 +1,34 @@
+@*
+    The week's diary at a glance: one spot per day, coloured by mood where you picked one. Each
+    links to that day's page, for rereading before you write the weekly reflection.
+*@
+@implements IDisposable
+@inject DiaryStore Diary
+
+<div class="review-diary">
+    <span class="muted">Diary this week: @Written of 7 days</span>
+    <div class="review-diary-days">
+        @foreach (var day in Week.Days)
+        {
+            var entry = Diary.For(day);
+            <a href="@($"diary?day={day:yyyy-MM-dd}")" class="@($"review-diary-day {DiaryMood.CssClass(entry.Mood)}{(entry.IsEmpty ? " empty" : "")}")"
+               title="@($"{day:dddd}: {(entry.IsEmpty ? "nothing written" : entry.Mood is { } m ? DiaryMood.Name(m) : "written")}")">
+                @if (entry.Mood is { } mood)
+                {
+                    <MudIcon Icon="@DiaryMood.Icon(mood)" Size="Size.Small" />
+                }
+                <span>@day.ToString("ddd")[..2]</span>
+            </a>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public WeekRange Week { get; set; }
+
+    private int Written => Week.Days.Count(d => !Diary.For(d).IsEmpty);
+
+    protected override void OnInitialized() => Diary.Changed += OnChanged;
+    public void Dispose() => Diary.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

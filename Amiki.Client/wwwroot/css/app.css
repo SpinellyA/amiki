@@ -1339,6 +1339,175 @@ button.sync-status {
     color: var(--mud-palette-text-secondary);
 }
 
+/* ---------- Diary ---------- */
+
+/* Mood colours, rough → great. Shared by the picker, calendar dots and the review strip. */
+.mood-1 { --mood: var(--mud-palette-error); }
+.mood-2 { --mood: var(--mud-palette-warning); }
+.mood-3 { --mood: var(--mud-palette-info); }
+.mood-4 { --mood: color-mix(in srgb, var(--mud-palette-success) 70%, var(--mud-palette-info)); }
+.mood-5 { --mood: var(--mud-palette-success); }
+.mood-none { --mood: var(--mud-palette-text-secondary); }
+
+.diary-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 959px) {
+    .diary-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.diary-side { display: flex; flex-direction: column; gap: 1rem; }
+.diary-side .widget { height: auto; }
+
+.diary-day-label { min-width: 7.5rem; text-align: center; font-weight: 600; font-size: 0.95rem; }
+
+.diary-page { height: auto; padding: 1rem 1.25rem 0.75rem; }
+
+.diary-mood-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+.diary-prompt { font-weight: 600; font-size: 0.95rem; }
+
+.mood-picker { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+.mood-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem 0.3rem 0.4rem;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 999px;
+    background: none;
+    color: var(--mud-palette-text-secondary);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.mood-choice:hover { color: var(--mood); border-color: var(--mood); }
+
+.mood-choice.picked {
+    color: var(--mood);
+    border-color: var(--mood);
+    background: color-mix(in srgb, var(--mood) 14%, transparent);
+    font-weight: 600;
+}
+
+.mood-choice:focus-visible { outline: 2px solid var(--mud-palette-primary); outline-offset: 2px; }
+
+.diary-text { margin-top: 0.5rem !important; }
+
+.diary-text textarea {
+    font-size: 1rem !important;
+    line-height: 1.7 !important;
+}
+
+.diary-foot { display: flex; padding-top: 0.5rem; font-size: 0.75rem; }
+
+/* Compact month: one dot per written day, coloured by mood. */
+.diary-cal { padding: 0.5rem 0.5rem 0.75rem; }
+.diary-cal .widget-head { justify-content: space-between; padding: 0 0.25rem 0.5rem; }
+.diary-month { font-weight: 700; }
+.diary-cal .cal-weekdays > div { padding: 0 0 0.3rem; text-align: center; font-size: 0.65rem; }
+.diary-cal .cal-day { min-height: 2.6rem; padding: 0.15rem; align-items: center; gap: 0.1rem; }
+.diary-cal .cal-day-num { width: 1.4rem; height: 1.4rem; font-size: 0.72rem; }
+.diary-cal .cal-items { flex-direction: row; justify-content: center; }
+
+.diary-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mood);
+}
+
+.diary-list { display: flex; flex-direction: column; padding: 0.25rem 0 0.25rem; }
+
+.diary-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.diary-item:hover { background: var(--mud-palette-action-default-hover); }
+.diary-item.selected { box-shadow: inset 3px 0 0 var(--mud-palette-primary); background: var(--mud-palette-action-default-hover); }
+
+.diary-item-mood {
+    display: grid;
+    place-items: center;
+    width: 1.25rem;
+    flex-shrink: 0;
+    padding-top: 0.1rem;
+    color: var(--mood);
+}
+
+.diary-item-main { display: flex; flex-direction: column; min-width: 0; }
+.diary-item-day { font-size: 0.85rem; font-weight: 600; }
+
+.diary-item-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    font-size: 0.8rem;
+}
+
+.diary-widget-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+}
+
+/* The week's diary inside the weekly review */
+.review-diary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.6rem 1rem 0;
+    font-size: 0.8rem;
+}
+
+.review-diary-days { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.review-diary-day {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--mood) 50%, transparent);
+    border-radius: 999px;
+    color: var(--mood);
+    font-size: 0.72rem;
+    text-decoration: none;
+}
+
+.review-diary-day .mud-icon-root { font-size: 0.95rem; }
+.review-diary-day.empty { border-style: dashed; border-color: var(--mud-palette-lines-default); color: var(--mud-palette-text-secondary); }
+.review-diary-day:hover { background: var(--mud-palette-action-default-hover); }
+
 /* ---------- Weekly review ---------- */
 
 .review-weeks { gap: 0.25rem; flex-wrap: nowrap; }

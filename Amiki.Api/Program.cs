@@ -85,6 +85,7 @@ api.MapEntity("tasks", db => db.Tasks);
 api.MapEntity("ideas", db => db.Ideas);
 api.MapEntity("plans", db => db.Plans, Plan.CheckReplace);
 api.MapEntity("weekly-notes", db => db.WeeklyNotes);
+api.MapEntity("diary", db => db.Diary);
 
 // Money: every change is audited, and account and category names must be real ones.
 api.MapEntity("categories", db => db.Categories,

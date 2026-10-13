@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Amiki.Core;
+using Amiki.Modules.Diary;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
@@ -27,6 +28,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<WeeklyNote> WeeklyNotes => Set<WeeklyNote>();
+    public DbSet<DiaryEntry> Diary => Set<DiaryEntry>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -112,6 +114,13 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             note.Property(n => n.WentWell).HasMaxLength(WeeklyNote.MaxLength);
             note.Property(n => n.ToChange).HasMaxLength(WeeklyNote.MaxLength);
             note.HasIndex(n => n.WeekStart).IsUnique();
+        });
+
+        model.Entity<DiaryEntry>(entry =>
+        {
+            entry.ToTable("diary_entries");
+            entry.Property(e => e.Text).HasMaxLength(DiaryEntry.MaxLength);
+            entry.HasIndex(e => e.Day).IsUnique();
         });
 
         // A plan is saved and loaded as one unit, so its items live in a jsonb column on the

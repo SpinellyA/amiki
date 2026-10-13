@@ -12,6 +12,7 @@
         <MudSpacer />
         <span class="muted widget-hint">@SavedText</span>
     </div>
+    <ReviewDiaryStrip Week="Week" />
     <div class="review-notes-fields">
         <MudTextField T="string" Value="_note.WentWell" ValueChanged="v => Edit(n => n.WentWell = v)" Immediate="true"
                       Label="What went well?" Lines="4" AutoGrow="true" MaxLength="WeeklyNote.MaxLength" Variant="Variant.Outlined"

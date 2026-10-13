@@ -1,0 +1,75 @@
+@*
+    One day's page: the mood, and the writing. Saves a moment after you stop typing, when you leave
+    the box, and when you switch days. The page gives each day its own instance (@key).
+*@
+@implements IDisposable
+@inject DiaryStore Store
+
+<MudPaper Outlined="true" Class="widget diary-page">
+    <div class="diary-mood-row">
+        <span class="diary-prompt">@(Day == DateTime.Today ? "How was today?" : $"How was {Day:dddd}?")</span>
+        <DiaryMoodPicker Value="_entry.Mood" ValueChanged="SetMood" />
+    </div>
+    <MudTextField T="string" Value="_entry.Text" ValueChanged="SetText" Immediate="true" OnBlur="SaveNow"
+                  Placeholder="@Placeholder" Lines="12" AutoGrow="true" MaxLines="40"
+                  MaxLength="DiaryEntry.MaxLength" Variant="Variant.Text" Underline="false" Class="diary-text"
+                  aria-label="@($"Diary for {Day:MMMM d}")" />
+    <div class="diary-foot muted">
+        <span>@_entry.WordCount word@(_entry.WordCount == 1 ? "" : "s")</span>
+        <MudSpacer />
+        <span>@SavedText</span>
+    </div>
+</MudPaper>
+
+@code {
+    private static readonly TimeSpan SaveAfter = TimeSpan.FromMilliseconds(800);
+
+    [Parameter, EditorRequired] public DateTime Day { get; set; }
+
+    private DiaryEntry _entry = default!;
+    private bool _dirty;
+    private CancellationTokenSource? _debounce;
+
+    private string Placeholder => Day == DateTime.Today
+        ? "What happened, what you're thinking about, what you want to remember…"
+        : "Nothing written for this day yet.";
+
+    private string SavedText => _dirty ? "Saving…" : _entry.IsEmpty ? "Only you can see this" : $"Saved {When.Short(_entry.UpdatedAt)}";
+
+    protected override void OnInitialized() => _entry = Store.For(Day).Clone();
+
+    private void SetMood(int? mood)
+    {
+        _entry.Mood = mood;
+        _dirty = true;
+        SaveNow(); // a tap is a decision; no need to wait
+    }
+
+    private void SetText(string text)
+    {
+        _entry.Text = text;
+        _dirty = true;
+        _debounce?.Cancel();
+        var cts = _debounce = new CancellationTokenSource();
+        _ = Task.Delay(SaveAfter, cts.Token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled) InvokeAsync(SaveNow);
+        }, TaskScheduler.Default);
+    }
+
+    private void SaveNow()
+    {
+        Persist();
+        StateHasChanged();
+    }
+
+    private void Persist()
+    {
+        if (!_dirty) return;
+        _debounce?.Cancel();
+        _dirty = false;
+        Store.Save(_entry.Clone());
+    }
+
+    public void Dispose() => Persist();
+}

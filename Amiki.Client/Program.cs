@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Amiki;
 using Amiki.Data;
+using Amiki.Modules.Diary;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
@@ -37,6 +38,7 @@ builder.Services.AddInboxModule();
 builder.Services.AddTasksModule();
 builder.Services.AddIdeasModule();
 builder.Services.AddFinanceModule();
+builder.Services.AddDiaryModule();
 builder.Services.AddReviewModule();
 builder.Services.AddPomodoroModule();
 

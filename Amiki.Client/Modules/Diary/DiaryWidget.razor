@@ -1,0 +1,41 @@
+@*
+    Dashboard: today's page at a glance. Pick a mood right here; "Write" opens the full page.
+*@
+@implements IDisposable
+@inject DiaryStore Store
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.AutoStories" Size="Size.Small" />
+        <span>Diary</span>
+        <MudSpacer />
+        @if (Store.Streak > 1)
+        {
+            <span class="muted widget-hint">@Store.Streak days in a row</span>
+        }
+    </div>
+    @{ var today = Store.For(DateTime.Today); }
+    <div class="px-4 pt-3">
+        <div class="diary-prompt mb-1">How was today?</div>
+        <DiaryMoodPicker Value="today.Mood" ValueChanged="SetMood" ShowLabels="false" />
+        @if (!string.IsNullOrWhiteSpace(today.Text))
+        {
+            <div class="diary-widget-text muted">@today.Text</div>
+        }
+        <MudButton Href="diary" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Class="mt-1 mb-1"
+                   StartIcon="@Icons.Material.Outlined.Edit">@(string.IsNullOrWhiteSpace(today.Text) ? "Write about it" : "Keep writing")</MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+    public void Dispose() => Store.Changed -= OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void SetMood(int? mood)
+    {
+        var entry = Store.For(DateTime.Today).Clone();
+        entry.Mood = mood;
+        Store.Save(entry);
+    }
+}
