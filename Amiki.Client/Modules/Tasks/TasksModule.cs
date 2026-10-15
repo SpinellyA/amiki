@@ -20,6 +20,7 @@ public static class TasksModule
             Icon: Icons.Material.Outlined.TaskAlt,
             Href: "tasks",
             Order: 10,
+            Section: NavSection.Plan,
             Widgets: [new(typeof(TasksTodayWidget), 7), new(typeof(TasksWeekWidget), 5)]));
         return services;
     }

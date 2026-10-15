@@ -15,6 +15,7 @@ public static class InboxModule
             Icon: Icons.Material.Outlined.Inbox,
             Href: "inbox",
             Order: 5,
+            Section: NavSection.Plan,
             Widgets: [new(typeof(InboxWidget), 5)],
             Overlay: typeof(QuickCaptureButton)));
         return services;

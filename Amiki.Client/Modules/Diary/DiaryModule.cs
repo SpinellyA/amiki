@@ -13,6 +13,7 @@ public static class DiaryModule
             Icon: Icons.Material.Outlined.AutoStories,
             Href: "diary",
             Order: 25,
+            Section: NavSection.Reflect,
             Widgets: [new(typeof(DiaryWidget), 5)]));
         return services;
     }

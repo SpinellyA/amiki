@@ -28,6 +28,7 @@ public static class FinanceModule
             Icon: Icons.Material.Outlined.AccountBalanceWallet,
             Href: "money",
             Order: 30,
+            Section: NavSection.Track,
             Widgets: [new(typeof(MoneyWidget), 5)]));
         return services;
     }

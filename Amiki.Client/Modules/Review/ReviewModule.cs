@@ -12,7 +12,8 @@ public static class ReviewModule
             Name: "Weekly review",
             Icon: Icons.Material.Outlined.EventNote,
             Href: "review",
-            Order: 50));
+            Order: 50,
+            Section: NavSection.Reflect));
         return services;
     }
 }

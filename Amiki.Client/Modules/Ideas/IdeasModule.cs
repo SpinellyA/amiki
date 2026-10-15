@@ -14,6 +14,7 @@ public static class IdeasModule
             Icon: Icons.Material.Outlined.Lightbulb,
             Href: "ideas",
             Order: 20,
+            Section: NavSection.Plan,
             Widgets: [new(typeof(RecentIdeasWidget), 7)]));
         return services;
     }

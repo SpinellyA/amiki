@@ -14,7 +14,7 @@ public sealed record ModuleInfo(
     int Order = 100,
     IReadOnlyList<WidgetInfo>? Widgets = null,
     Type? Overlay = null,
-    NavSection Section = NavSection.Modules);
+    NavSection Section = NavSection.Plan);
 
 /// <param name="Span">Width on the 12-column dashboard grid at desktop size.</param>
 public sealed record WidgetInfo(Type Component, int Span = 6);
