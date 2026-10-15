@@ -32,6 +32,7 @@ builder.Services.AddSingleton<Api>();
 builder.Services.AddSingleton<Session>();
 builder.Services.AddSingleton<SyncQueue>();
 builder.Services.AddSingleton<DataSync>();
+builder.Services.AddSingleton<DevicePreferences>();
 
 // Modules. Each one registers its own services plus a ModuleInfo; the shell picks them up from DI.
 builder.Services.AddInboxModule();

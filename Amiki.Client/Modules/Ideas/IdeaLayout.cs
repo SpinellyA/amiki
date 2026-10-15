@@ -1,6 +1,6 @@
 namespace Amiki.Modules.Ideas;
 
-/// <summary>Ways to lay out the Ideas page. Each device remembers the one you picked.</summary>
+/// <summary>Ways to lay out the Ideas page. Each device remembers the one you picked (DevicePreferences).</summary>
 public enum IdeaLayout
 {
     /// <summary>Three columns, Parked | In progress | Done; drag between them.</summary>

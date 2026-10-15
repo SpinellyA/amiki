@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject FinanceStore Store
 @inject FinanceActions Actions
+@inject Amiki.Data.DevicePreferences Preferences
 
 <PageTitle>Money · Amiki</PageTitle>
 
@@ -53,11 +54,21 @@
 <QuickEntry />
 
 <div class="month-bar">
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="Previous month"
-                   OnClick="() => ChangeMonth(-1)" />
-    <span class="cal-title">@_month.ToString("MMMM yyyy")</span>
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="Next month"
-                   OnClick="() => ChangeMonth(1)" Disabled="_month >= ThisMonth" />
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" aria-label="@($"Previous {LengthWord}")"
+                   OnClick="() => Show(_period.Previous)" />
+    <span class="cal-title">@_period.Label</span>
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" aria-label="@($"Next {LengthWord}")"
+                   OnClick="() => Show(_period.Next)" Disabled="_period.IsCurrent" />
+    @if (!_period.IsCurrent)
+    {
+        <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => Show(MoneyPeriod.Current(_period.Length))">This @LengthWord</MudButton>
+    }
+    <MudSpacer />
+    <MudToggleGroup T="PeriodLength" Value="_period.Length" ValueChanged="SetLength" Color="Color.Primary" Size="Size.Small"
+                    Outlined="true" Class="period-switch" aria-label="Show a month or a week">
+        <MudToggleItem Value="PeriodLength.Month" Text="Month" />
+        <MudToggleItem Value="PeriodLength.Week" Text="Week" />
+    </MudToggleGroup>
 </div>
 
 <MudGrid Spacing="3">
@@ -93,7 +104,7 @@
                     <span>Spending per day</span>
                 </div>
                 <div class="px-4 pt-3 pb-2">
-                    <DailySpending Month="_month" Transactions="_flows" />
+                    <DailySpending Period="_period" Transactions="_flows" />
                 </div>
             </MudPaper>
         </MudStack>
@@ -114,7 +125,7 @@
             @{ var shown = Entries().ToList(); }
             @if (shown.Count == 0)
             {
-                <MudText Typo="Typo.body2" Class="muted px-4 py-3">Nothing logged in @_month.ToString("MMMM").</MudText>
+                <MudText Typo="Typo.body2" Class="muted px-4 py-3">Nothing logged in @_period.Name.</MudText>
             }
             @foreach (var day in shown.GroupBy(e => e.Date.Date).OrderByDescending(g => g.Key))
             {
@@ -139,18 +150,22 @@
 </MudGrid>
 
 @code {
-    private static DateTime ThisMonth => new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private const string LengthKey = "money.period";
 
     /// <summary>A line in the list: either a transaction or a transfer.</summary>
     private sealed record Entry(DateTime Date, DateTime CreatedAt, decimal NetChange, Transaction? Transaction = null, Transfer? Transfer = null);
 
-    private DateTime _month = ThisMonth;
+    private MoneyPeriod _period = MoneyPeriod.Current(PeriodLength.Month);
     private string? _category;
     private List<Transaction> _flows = [];
     private decimal _spent, _received;
 
+    private string LengthWord => _period.Length == PeriodLength.Week ? "week" : "month";
+
     protected override void OnInitialized()
     {
+        // Each device remembers month or week, e.g. week on the phone, month on the second monitor.
+        _period = MoneyPeriod.Current(Preferences.Get(LengthKey, PeriodLength.Month));
         Store.Changed += OnChanged;
         Refresh();
     }
@@ -163,26 +178,32 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void ChangeMonth(int delta)
+    private void Show(MoneyPeriod period)
     {
-        _month = _month.AddMonths(delta);
+        _period = period;
         _category = null;
         Refresh();
     }
 
+    private void SetLength(PeriodLength length)
+    {
+        Preferences.Set(LengthKey, length);
+        Show(_period.As(length));
+    }
+
     private void Refresh()
     {
-        _flows = Store.FlowsInMonth(_month).ToList();
+        _flows = Store.FlowsIn(_period).ToList();
         _spent = _flows.Where(t => t.Kind == TxKind.Expense).Sum(t => t.Amount);
         _received = _flows.Where(t => t.Kind == TxKind.Income).Sum(t => t.Amount);
     }
 
     // Filtering by "Fees" shows the transfers that had one; any other category shows its transactions.
     private IEnumerable<Entry> Entries() =>
-        Store.InMonth(_month)
+        Store.In(_period)
             .Where(t => _category is null || t.Category == _category)
             .Select(t => new Entry(t.Date, t.CreatedAt, t.Signed, Transaction: t))
-            .Concat(Store.TransfersInMonth(_month)
+            .Concat(Store.TransfersIn(_period)
                 .Where(t => _category is null || (_category == Category.Fees && t.Fee > 0))
                 .Select(t => new Entry(t.Date, t.CreatedAt, -t.Fee, Transfer: t)));
 

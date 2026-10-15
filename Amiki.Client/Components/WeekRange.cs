@@ -1,6 +1,9 @@
-namespace Amiki.Modules.Review;
+namespace Amiki.Components;
 
-/// <summary>A Monday-to-Sunday week. <see cref="End"/> is the next Monday (not included).</summary>
+/// <summary>
+/// A Monday-to-Sunday week. <see cref="End"/> is the next Monday (not included). Shared by the
+/// weekly review and Money's week view.
+/// </summary>
 public readonly record struct WeekRange(DateTime Start)
 {
     public DateTime End => Start.AddDays(7);

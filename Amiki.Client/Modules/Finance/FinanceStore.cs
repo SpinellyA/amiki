@@ -35,24 +35,20 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
 
     public decimal TotalBalance => Accounts.Sum(a => Balance(a.Name));
 
-    public IEnumerable<Transaction> InMonth(DateTime month) =>
-        _items.Where(t => t.Date.Year == month.Year && t.Date.Month == month.Month);
+    public IEnumerable<Transaction> In(MoneyPeriod period) => _items.Where(t => period.Contains(t.Date));
 
-    public IEnumerable<Transfer> TransfersInMonth(DateTime month) =>
-        _transfers.Where(t => t.Date.Year == month.Year && t.Date.Month == month.Month);
+    public IEnumerable<Transfer> TransfersIn(MoneyPeriod period) => _transfers.Where(t => period.Contains(t.Date));
+
+    public IEnumerable<Transaction> FlowsIn(MoneyPeriod period) => FlowsBetween(period.Start, period.End);
+
+    public IEnumerable<Transaction> FlowsInMonth(DateTime month) => FlowsIn(MoneyPeriod.Containing(PeriodLength.Month, month));
 
     /// <summary>
-    /// Real money in and out for totals and charts: transactions minus balance corrections, plus
-    /// transfer fees as spending. Moving money between your own accounts isn't spending, so the
-    /// transfers themselves don't appear.
+    /// Real money in and out for totals and charts, from <paramref name="start"/> up to (not
+    /// including) <paramref name="end"/>: transactions minus balance corrections, plus transfer
+    /// fees as spending. Moving money between your own accounts isn't spending, so the transfers
+    /// themselves don't appear.
     /// </summary>
-    public IEnumerable<Transaction> FlowsInMonth(DateTime month)
-    {
-        var start = new DateTime(month.Year, month.Month, 1);
-        return FlowsBetween(start, start.AddMonths(1));
-    }
-
-    /// <summary>The same as <see cref="FlowsInMonth"/>, for any dates (<paramref name="end"/> not included).</summary>
     public IEnumerable<Transaction> FlowsBetween(DateTime start, DateTime end) =>
         _items.Where(t => t.Date >= start && t.Date < end && !Category.IsCorrection(t.Category))
             .Concat(_transfers.Where(t => t.Date >= start && t.Date < end && t.Fee > 0).Select(t => new Transaction

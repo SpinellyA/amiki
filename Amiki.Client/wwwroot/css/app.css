@@ -711,6 +711,7 @@ button.sync-status {
 .month-bar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.25rem;
     margin: 1.5rem 0 0.75rem;
 }
@@ -831,6 +832,14 @@ button.sync-status {
     font-size: 0.7rem;
     color: var(--mud-palette-text-secondary);
 }
+
+/* Week view: seven wide columns, each with its value and weekday. */
+.day-cols.week { gap: 0.5rem; }
+.day-cols.week .day-bar { max-width: 2.5rem; }
+.day-cols.week .day-peak { font-size: 0.7rem; }
+.day-axis.week { gap: 0.5rem; }
+.day-axis.week > span { flex: 1; text-align: center; }
+.day-axis.week > .today { color: var(--mud-palette-primary); font-weight: 600; }
 
 .tx-day {
     display: flex;

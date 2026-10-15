@@ -2,7 +2,7 @@
 @implements IDisposable
 @inject IdeaStore Store
 @inject TaskStore Tasks
-@inject IdeaLayoutPreference LayoutPreference
+@inject Amiki.Data.DevicePreferences Preferences
 
 <PageTitle>Ideas · Amiki</PageTitle>
 
@@ -100,6 +100,8 @@ else
 }
 
 @code {
+    private const string LayoutKey = "ideas.layout";
+
     private string _draft = "";
     private string? _tag;
     private string? _search;
@@ -116,7 +118,7 @@ else
 
     protected override void OnInitialized()
     {
-        _layout = LayoutPreference.Get();
+        _layout = Preferences.Get(LayoutKey, IdeaLayout.Board);
         Store.Changed += OnChanged;
         Tasks.Changed += OnChanged;
     }
@@ -138,7 +140,7 @@ else
     private void SetLayout(IdeaLayout layout)
     {
         _layout = layout;
-        LayoutPreference.Set(layout);
+        Preferences.Set(LayoutKey, layout);
     }
 
     private static string LayoutIcon(IdeaLayout layout) => layout switch

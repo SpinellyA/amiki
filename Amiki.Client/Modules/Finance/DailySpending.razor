@@ -1,14 +1,15 @@
 @*
-    Spending per day across one month as columns. Only the biggest day is labelled; every
-    column has a hover tooltip with its exact value.
+    Spending per day across a month or a week, as columns. Every column has a hover tooltip with
+    its exact value. A month labels only its biggest day; a week has room to label every day.
 *@
 
-<div class="day-cols" role="img" aria-label="@($"Daily spending, {Month:MMMM yyyy}. Biggest day {_peak:MMM d}, {Money.Format(_peakValue)}.")">
+<div class="@($"day-cols{(IsWeek ? " week" : "")}")" role="img"
+     aria-label="@($"Daily spending, {Period.Label}. Biggest day {_peak:MMM d}, {Money.Format(_peakValue)}.")">
     @foreach (var (day, amount) in _days)
     {
         <div class="day-col @(day == DateTime.Today ? "today" : "") @(day > DateTime.Today ? "future" : "")"
              title="@($"{day:ddd, MMM d}: {(amount == 0 ? "no spending" : Money.Format(amount))}")">
-            @if (amount > 0 && day == _peak)
+            @if (amount > 0 && (IsWeek || day == _peak))
             {
                 <span class="day-peak">@Money.Compact(amount)</span>
             }
@@ -16,14 +17,26 @@
         </div>
     }
 </div>
-<div class="day-axis">
-    <span>@_days.First().Day.ToString("MMM d")</span>
-    <span>@_days.Last().Day.ToString("MMM d")</span>
+<div class="@($"day-axis{(IsWeek ? " week" : "")}")">
+    @if (IsWeek)
+    {
+        @foreach (var (day, _) in _days)
+        {
+            <span class="@(day == DateTime.Today ? "today" : "")">@day.ToString("ddd")</span>
+        }
+    }
+    else
+    {
+        <span>@_days.First().Day.ToString("MMM d")</span>
+        <span>@_days.Last().Day.ToString("MMM d")</span>
+    }
 </div>
 
 @code {
-    [Parameter, EditorRequired] public DateTime Month { get; set; }
+    [Parameter, EditorRequired] public MoneyPeriod Period { get; set; }
     [Parameter, EditorRequired] public IEnumerable<Transaction> Transactions { get; set; } = [];
+
+    private bool IsWeek => Period.Length == PeriodLength.Week;
 
     private List<(DateTime Day, decimal Amount)> _days = [];
     private DateTime _peak;
@@ -31,13 +44,9 @@
 
     protected override void OnParametersSet()
     {
-        var first = new DateTime(Month.Year, Month.Month, 1);
         var byDay = Transactions.Where(t => t.Kind == TxKind.Expense)
             .GroupBy(t => t.Date.Date).ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
-        _days = Enumerable.Range(0, DateTime.DaysInMonth(first.Year, first.Month))
-            .Select(i => first.AddDays(i))
-            .Select(d => (d, byDay.GetValueOrDefault(d)))
-            .ToList();
+        _days = Period.Days.Select(d => (d, byDay.GetValueOrDefault(d))).ToList();
         (_peak, _peakValue) = _days.MaxBy(d => d.Amount);
     }
 }
