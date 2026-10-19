@@ -83,7 +83,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
         {
             account.ToTable("accounts");
             account.HasKey(a => a.Name);
-            account.HasData(new Account("Cash", 0), new Account("GCash", 0), new Account("Maya", 0), new Account("Landbank", 0));
+            account.HasData(new Account("Cash", 0), new Account("GCash", 0), new Account("Maribank", 0), new Account("Landbank", 0));
         });
 
         model.Entity<Transfer>(transfer =>

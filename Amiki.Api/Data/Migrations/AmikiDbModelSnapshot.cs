@@ -118,7 +118,7 @@ namespace Amiki.Api.Data.Migrations
                         },
                         new
                         {
-                            Name = "Maya",
+                            Name = "Maribank",
                             OpeningBalance = 0m
                         },
                         new
