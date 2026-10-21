@@ -23,7 +23,7 @@ public class GeminiTests
     }
 
     private static GeminiModel Model(FakeGemini fake, string? key = "test-key") =>
-        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = key, Model = "gemini-test" }));
+        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = key, Model = "gemini-test", LightModel = "gemini-light" }));
 
     private static readonly JsonObject Schema = new() { ["type"] = "object" };
 
@@ -37,7 +37,7 @@ public class GeminiTests
         Assert.Equal("""[{"id":"1"}]""", answer);
         Assert.Equal("test-key", fake.Sent!.Headers.GetValues("x-goog-api-key").Single());
         Assert.DoesNotContain("test-key", fake.Sent.RequestUri!.ToString());
-        Assert.EndsWith("/models/gemini-test:generateContent", fake.Sent.RequestUri.AbsolutePath);
+        Assert.EndsWith("/models/gemini-light:generateContent", fake.Sent.RequestUri.AbsolutePath); // background jobs use the light model
         Assert.Contains("\"responseMimeType\":\"application/json\"", fake.SentBody);
     }
 

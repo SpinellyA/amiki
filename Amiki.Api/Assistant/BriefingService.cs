@@ -19,6 +19,10 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
     // waits and gets the first one's note instead of asking the model again.
     private static readonly SemaphoreSlim Writing = new(1, 1);
 
+    // After hitting the free tier's limit, don't ask again on every dashboard load for a while.
+    private static readonly TimeSpan PauseAfterLimit = TimeSpan.FromMinutes(10);
+    private static DateTime _quietUntil = DateTime.MinValue;
+
     public async Task<Briefing> GetAsync(DateTime now, bool rewrite, CancellationToken ct)
     {
         var settings = await db.AssistantSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new AssistantSettings();
@@ -29,19 +33,21 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
 
         var saved = await SavedAsync(now, ct);
         if (saved is not null && !rewrite) return new Briefing(saved.Text, saved.WrittenAt, nudges);
+        if (DateTime.UtcNow < _quietUntil)
+            return new Briefing(saved?.Text, saved?.WrittenAt, nudges, "Gemini's free-tier limit was reached; she'll write it in a few minutes.");
 
         await Writing.WaitAsync(ct);
         try
         {
             if (!rewrite && await SavedAsync(now, ct) is { } justWritten) return new Briefing(justWritten.Text, justWritten.WrittenAt, nudges);
-            var text = await model.ChatAsync(Instructions(settings, now), [], Facts(input, nudges), [],
-                (_, _) => throw new ToolException("No tools here."), ct);
+            var text = await model.WriteAsync(Instructions(settings, now), Facts(input, nudges), ct);
             var briefing = DailyBriefing.For(now.Date, text, now);
             await SaveAsync(briefing, ct);
             return new Briefing(briefing.Text, briefing.WrittenAt, nudges);
         }
         catch (LanguageModelException ex)
         {
+            if (ex.RateLimited) _quietUntil = DateTime.UtcNow + PauseAfterLimit;
             return new Briefing(saved?.Text, saved?.WrittenAt, nudges, ex.Message);
         }
         finally

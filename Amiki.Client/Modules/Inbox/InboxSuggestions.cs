@@ -14,7 +14,9 @@ public sealed class InboxSuggestions(Api api)
 {
     private readonly Dictionary<Guid, (string Text, TriageSuggestion Suggestion)> _known = [];
     private static readonly TimeSpan PauseAfterProblem = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan PauseAfterLimit = TimeSpan.FromMinutes(10);
 
+    private readonly HashSet<(Guid Id, string Text)> _asked = [];
     private readonly SemaphoreSlim _gate = new(1, 1);
     private bool? _enabled;
     private DateTime _quietUntil = DateTime.MinValue; // after a failure, don't spend the free tier retrying every refresh
@@ -40,8 +42,11 @@ public sealed class InboxSuggestions(Api api)
             _enabled ??= await StatusAsync();
             if (_enabled != true || DateTime.Now < _quietUntil) return;
 
-            var missing = items.Where(i => For(i) is null).Take(TriageRequest.MaxNotes).ToList();
+            // Each note is asked about once per session, answered or not: a note the model skipped
+            // must not be re-sent on every background refresh (that quietly used up the free tier).
+            var missing = items.Where(i => For(i) is null && !_asked.Contains((i.Id, i.Text))).Take(TriageRequest.MaxNotes).ToList();
             if (missing.Count == 0) return;
+            foreach (var item in missing) _asked.Add((item.Id, item.Text));
 
             Busy = true;
             Problem = null;
@@ -58,9 +63,12 @@ public sealed class InboxSuggestions(Api api)
             }
             else
             {
-                _quietUntil = DateTime.Now + PauseAfterProblem;
-                Problem = response.StatusCode == HttpStatusCode.TooManyRequests
-                    ? "Gemini's free-tier limit was reached. Suggestions will come back in a minute."
+                // These notes weren't really answered: let them be asked again once the pause is over.
+                foreach (var item in missing) _asked.Remove((item.Id, item.Text));
+                var limited = response.StatusCode == HttpStatusCode.TooManyRequests;
+                _quietUntil = DateTime.Now + (limited ? PauseAfterLimit : PauseAfterProblem);
+                Problem = limited
+                    ? "Gemini's free-tier limit was reached. Suggestions will try again in about 10 minutes."
                     : "Couldn't get suggestions right now.";
             }
         }

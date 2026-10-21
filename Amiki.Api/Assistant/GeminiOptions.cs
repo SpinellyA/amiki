@@ -15,5 +15,11 @@ public sealed class GeminiOptions
     /// </summary>
     public string Model { get; set; } = "gemini-flash-latest";
 
+    /// <summary>
+    /// A cheaper model for small background jobs (Inbox suggestions, the daily note). Flash-Lite
+    /// has higher free-tier limits, which keeps chat's budget for chat.
+    /// </summary>
+    public string LightModel { get; set; } = "gemini-flash-lite-latest";
+
     public bool Enabled => !string.IsNullOrWhiteSpace(ApiKey);
 }

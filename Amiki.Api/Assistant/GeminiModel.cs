@@ -17,7 +17,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
     /// <summary>Most lookups a single reply may make, so a confused model can't loop forever on the free tier.</summary>
     internal const int MaxToolRounds = 5;
 
-    public string Description => $"Gemini · {options.Value.Model}";
+    public string Description => $"Gemini · chat: {options.Value.Model} · background: {options.Value.LightModel}";
 
     public async Task<string> AskForJsonAsync(string instructions, string input, JsonObject schema, CancellationToken ct)
     {
@@ -28,7 +28,15 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
             ["responseMimeType"] = "application/json",
             ["responseSchema"] = ToGeminiSchema(schema),
         };
-        var content = await SendAsync(body, ct);
+        var content = await SendAsync(options.Value.LightModel, body, ct);
+        return Text(content) ?? throw new LanguageModelException("Gemini sent back an empty answer.");
+    }
+
+    public async Task<string> WriteAsync(string instructions, string input, CancellationToken ct)
+    {
+        var body = Request(instructions, new JsonArray(UserText(input)));
+        body["generationConfig"] = new JsonObject { ["temperature"] = 0.7 };
+        var content = await SendAsync(options.Value.LightModel, body, ct);
         return Text(content) ?? throw new LanguageModelException("Gemini sent back an empty answer.");
     }
 
@@ -51,7 +59,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
 
         for (var round = 0; ; round++)
         {
-            var content = await SendAsync(body, ct);
+            var content = await SendAsync(options.Value.Model, body, ct);
             var calls = content["parts"]?.AsArray()
                 .Select(p => p?["functionCall"])
                 .OfType<JsonObject>()
@@ -101,7 +109,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
     internal static TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3)];
 
     /// <summary>Sends a request and returns the first candidate's content (role + parts).</summary>
-    private async Task<JsonObject> SendAsync(JsonObject body, CancellationToken ct)
+    private async Task<JsonObject> SendAsync(string model, JsonObject body, CancellationToken ct)
     {
         var settings = options.Value;
         if (!settings.Enabled) throw new LanguageModelException("The assistant isn't set up: add a Gemini API key (Gemini__ApiKey).");
@@ -110,7 +118,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
         HttpResponseMessage response;
         for (var attempt = 0; ; attempt++)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{Uri.EscapeDataString(settings.Model)}:generateContent")
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{Uri.EscapeDataString(model)}:generateContent")
             {
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
             };
