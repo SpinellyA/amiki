@@ -1,0 +1,43 @@
+@*
+    One change Amiki suggests, e.g. "Spent ₱500 · Transport · Cash · Oct 21 · “Gas”", with
+    Do it / Edit / Skip. Once you choose, it shows what you did.
+*@
+@inject ProposalRunner Runner
+@inject CategoryStore Categories
+
+<div class="@($"proposal {Proposal.Status.ToString().ToLowerInvariant()}")">
+    <MudIcon Icon="@Icon" Size="Size.Small" Class="proposal-icon" />
+    <span class="proposal-text">@Proposal.Describe()</span>
+    @switch (Proposal.Status)
+    {
+        case ProposalStatus.Done:
+            <span class="proposal-state"><MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" /> Done</span>
+            break;
+        case ProposalStatus.Skipped:
+            <span class="proposal-state">Skipped</span>
+            break;
+        default:
+            <div class="proposal-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => Runner.Do(Proposal)">Do it</MudButton>
+                @if (Proposal.Kind is ProposalKind.AddTask or ProposalKind.LogMoney)
+                {
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => Runner.EditAsync(Proposal)">Edit</MudButton>
+                }
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => Runner.Skip(Proposal)">Skip</MudButton>
+            </div>
+            break;
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AssistantProposal Proposal { get; set; } = default!;
+
+    private string Icon => Proposal.Kind switch
+    {
+        ProposalKind.AddTask => Icons.Material.Outlined.AddTask,
+        ProposalKind.CompleteTask => Icons.Material.Outlined.TaskAlt,
+        ProposalKind.LogMoney => Categories.IconOf(Proposal.Category ?? "", Proposal.MoneyKind ?? TxKind.Expense),
+        ProposalKind.AddIdea => Icons.Material.Outlined.Lightbulb,
+        _ => Icons.Material.Outlined.Inbox,
+    };
+}

@@ -21,6 +21,7 @@ public static class AssistantEndpoints
         services.AddHttpClient<ILanguageModel, GeminiModel>(http => http.Timeout = TimeSpan.FromSeconds(60));
         services.AddScoped<InboxTriageService>();
         services.AddScoped<AssistantTools>();
+        services.AddScoped<AssistantProposals>();
         services.AddScoped<AssistantChatService>();
         return services;
     }

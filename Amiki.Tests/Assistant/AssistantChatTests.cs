@@ -130,6 +130,29 @@ public class AssistantChatTests
     }
 
     [Fact]
+    public async Task A_busy_moment_is_retried_before_giving_up()
+    {
+        GeminiModel.RetryDelays = [TimeSpan.Zero, TimeSpan.Zero];
+        var busy = new BusyThenOk(failures: 2);
+
+        var reply = await new GeminiModel(new HttpClient(busy), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }))
+            .ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), CancellationToken.None);
+
+        Assert.Equal("You have ₱5,089 in Cash.", reply);
+        Assert.Equal(3, busy.Calls);
+    }
+
+    private sealed class BusyThenOk(int failures) : HttpMessageHandler
+    {
+        public int Calls { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(++Calls <= failures
+                ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent("""{"error":{"message":"high demand"}}""") }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(SaysDone) });
+    }
+
+    [Fact]
     public async Task Stops_if_she_keeps_looking_things_up()
     {
         var fake = new ScriptedGemini(CallsBalances);

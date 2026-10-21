@@ -7,6 +7,10 @@
     }
     <div class="chat-body">
         <div class="chat-bubble">@Line.Text</div>
+        @foreach (var proposal in Line.Proposals ?? [])
+        {
+            <ProposalCard @key="proposal.Id" Proposal="proposal" />
+        }
         @if (Line.Looked is { Count: > 0 } looked)
         {
             <div class="chat-looked">Looked at @string.Join(", ", looked)</div>

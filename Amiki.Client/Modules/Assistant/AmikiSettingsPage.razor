@@ -26,6 +26,9 @@
             <MudSwitch T="bool" Value="S.SeeMoney" ValueChanged="v => Edit(s => s.SeeMoney = v)" Color="Color.Primary" Label="Money (balances, spending, transactions)" />
             <MudSwitch T="bool" Value="S.SeeInbox" ValueChanged="v => Edit(s => s.SeeInbox = v)" Color="Color.Primary" Label="Inbox" />
             <MudSwitch T="bool" Value="S.SeeWeeklyNotes" ValueChanged="v => Edit(s => s.SeeWeeklyNotes = v)" Color="Color.Primary" Label="Weekly review notes" />
+            <MudDivider Class="my-2" />
+            <MudSwitch T="bool" Value="S.CanPropose" ValueChanged="v => Edit(s => s.CanPropose = v)" Color="Color.Primary"
+                       Label="Let her suggest changes (add tasks, log money…). Each one waits for your “Do it”." />
             <div class="settings-locked">
                 <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
                 <span><b>Diary</b>: never. She has no way to read it.</span>

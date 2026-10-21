@@ -52,7 +52,7 @@ public sealed class ChatSession(Api api)
             var request = new ChatRequest(DateTime.Now, history.TakeLast(ChatRequest.MaxHistory).ToList(), message);
             using var response = await api.Http.PostAsJsonAsync("api/assistant/chat", request, Api.Json);
             if (response.IsSuccessStatusCode && await response.Content.ReadFromJsonAsync<ChatReply>(Api.Json) is { } reply)
-                Add(new ChatLine(true, reply.Reply, reply.Looked));
+                Add(new ChatLine(true, reply.Reply, reply.Looked, reply.Proposals));
             else
                 Problem = await ReasonAsync(response);
         }
@@ -65,6 +65,16 @@ public sealed class ChatSession(Api api)
             Busy = false;
             Changed?.Invoke();
         }
+    }
+
+    /// <summary>Records what you did with one of her suggestions (it's also what she's told next time).</summary>
+    public void SetStatus(Guid proposalId, ProposalStatus status)
+    {
+        _lines = Lines.Select(line => line.Proposals?.Any(p => p.Id == proposalId) == true
+            ? line with { Proposals = line.Proposals!.Select(p => p.Id == proposalId ? p with { Status = status } : p).ToList() }
+            : line).ToList();
+        Save();
+        Changed?.Invoke();
     }
 
     public void NewChat()

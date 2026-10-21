@@ -15,6 +15,7 @@ public static class AssistantModule
         services.AddSingleton<AssistantSettingsStore>();
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<AssistantSettingsStore>());
         services.AddSingleton<ChatSession>();
+        services.AddScoped<ProposalRunner>();
         services.AddSingleton(new ModuleInfo(
             Name: "Amiki",
             Icon: Icons.Material.Outlined.AutoAwesome,

@@ -505,6 +505,39 @@ button.sync-status {
 
 .chat-looked { margin: 0.2rem 0 0 0.5rem; font-size: 0.72rem; color: var(--mud-palette-text-secondary); }
 
+/* A change she suggests, waiting for "Do it". */
+.proposal {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    margin-top: 0.4rem;
+    padding: 0.5rem 0.6rem 0.5rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--mud-palette-primary) 45%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--mud-palette-primary) 7%, var(--mud-palette-surface));
+    font-size: 0.85rem;
+}
+
+.proposal-icon { color: var(--mud-palette-primary); flex-shrink: 0; }
+.proposal-text { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.proposal-actions { display: flex; gap: 0.25rem; margin-left: auto; }
+
+.proposal-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.proposal.done { border-color: color-mix(in srgb, var(--mud-palette-success) 45%, transparent); background: none; }
+.proposal.done .proposal-icon, .proposal.done .proposal-state { color: var(--mud-palette-success); }
+.proposal.skipped { border-style: dashed; border-color: var(--mud-palette-lines-default); background: none; color: var(--mud-palette-text-secondary); }
+.proposal.skipped .proposal-icon { color: var(--mud-palette-text-secondary); }
+.proposal.skipped .proposal-text { text-decoration: line-through; }
+
 .chat-bubble.typing { display: inline-flex; gap: 0.25rem; padding: 0.8rem 0.9rem; }
 
 .chat-bubble.typing span {

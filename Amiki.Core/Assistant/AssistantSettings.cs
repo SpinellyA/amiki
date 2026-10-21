@@ -28,6 +28,12 @@ public sealed class AssistantSettings : IEntity
     public bool SeeInbox { get; set; } = true;
     public bool SeeWeeklyNotes { get; set; } = true;
 
+    /// <summary>
+    /// Whether she may suggest changes (add a task, log an expense…) for you to confirm. Only for
+    /// areas she can see; she can never change anything on her own.
+    /// </summary>
+    public bool CanPropose { get; set; } = true;
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public AssistantSettings Clone() => (AssistantSettings)MemberwiseClone();

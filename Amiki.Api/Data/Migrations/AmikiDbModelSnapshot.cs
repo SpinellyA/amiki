@@ -75,6 +75,9 @@ namespace Amiki.Api.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool>("CanPropose")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Personality")
                         .IsRequired()
                         .HasMaxLength(500)

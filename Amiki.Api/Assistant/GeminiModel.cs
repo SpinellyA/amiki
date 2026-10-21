@@ -41,7 +41,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
             contents.Add(new JsonObject
             {
                 ["role"] = line.FromAmiki ? "model" : "user",
-                ["parts"] = new JsonArray(new JsonObject { ["text"] = line.Text }),
+                ["parts"] = new JsonArray(new JsonObject { ["text"] = line.ForModel() }),
             });
         contents.Add(UserText(message));
 
@@ -97,37 +97,51 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
         return (JsonNode)declaration;
     }).ToArray());
 
+    /// <summary>Waits before each retry when Gemini is busy (the free tier often says "high demand" for a moment).</summary>
+    internal static TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3)];
+
     /// <summary>Sends a request and returns the first candidate's content (role + parts).</summary>
     private async Task<JsonObject> SendAsync(JsonObject body, CancellationToken ct)
     {
         var settings = options.Value;
         if (!settings.Enabled) throw new LanguageModelException("The assistant isn't set up: add a Gemini API key (Gemini__ApiKey).");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{Uri.EscapeDataString(settings.Model)}:generateContent")
-        {
-            Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Add("x-goog-api-key", settings.ApiKey);
-
+        var json = body.ToJsonString();
         HttpResponseMessage response;
-        try
+        for (var attempt = 0; ; attempt++)
         {
-            response = await http.SendAsync(request, ct);
-        }
-        catch (HttpRequestException)
-        {
-            throw new LanguageModelException("Couldn't reach Gemini. Try again in a moment.");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{Uri.EscapeDataString(settings.Model)}:generateContent")
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Add("x-goog-api-key", settings.ApiKey);
+            try
+            {
+                response = await http.SendAsync(request, ct);
+            }
+            catch (HttpRequestException)
+            {
+                throw new LanguageModelException("Couldn't reach Gemini. Try again in a moment.");
+            }
+
+            // Busy or briefly down: wait and try again, a couple of times.
+            var busy = response.StatusCode is HttpStatusCode.ServiceUnavailable or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout;
+            if (!busy || attempt >= RetryDelays.Length) break;
+            response.Dispose();
+            await Task.Delay(RetryDelays[attempt], ct);
         }
 
         using (response)
         {
-            var json = await response.Content.ReadAsStringAsync(ct);
+            if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+                throw new LanguageModelException("Gemini is very busy right now. Try again in a minute.");
+            var answer = await response.Content.ReadAsStringAsync(ct);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 throw new LanguageModelException("Gemini's free-tier limit was reached. Try again in a minute.", rateLimited: true);
             if (!response.IsSuccessStatusCode)
-                throw new LanguageModelException($"Gemini said no ({(int)response.StatusCode}): {ErrorMessage(json)}");
+                throw new LanguageModelException($"Gemini said no ({(int)response.StatusCode}): {ErrorMessage(answer)}");
 
-            var candidate = JsonNode.Parse(json)?["candidates"]?[0];
+            var candidate = JsonNode.Parse(answer)?["candidates"]?[0];
             if (candidate?["content"] is JsonObject content) return content;
             var reason = candidate?["finishReason"]?.GetValue<string>();
             throw new LanguageModelException(reason is "SAFETY" or "PROHIBITED_CONTENT"
