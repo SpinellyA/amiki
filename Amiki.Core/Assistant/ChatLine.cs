@@ -4,7 +4,8 @@ namespace Amiki.Modules.Assistant;
 /// <param name="FromAmiki">True for her replies, false for yours.</param>
 /// <param name="Looked">What she looked at to answer (e.g. "tasks", "money"); empty for your messages.</param>
 /// <param name="Proposals">Changes she suggested in this reply, with whether you did or skipped them.</param>
-public sealed record ChatLine(bool FromAmiki, string Text, IReadOnlyList<string>? Looked = null, IReadOnlyList<AssistantProposal>? Proposals = null)
+/// <param name="Seconds">How long her reply took, measured by the app (shown under it).</param>
+public sealed record ChatLine(bool FromAmiki, string Text, IReadOnlyList<string>? Looked = null, IReadOnlyList<AssistantProposal>? Proposals = null, double? Seconds = null)
 {
     /// <summary>
     /// The message as the model should remember it, including what became of her suggestions,

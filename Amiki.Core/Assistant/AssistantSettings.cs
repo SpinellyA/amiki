@@ -34,6 +34,9 @@ public sealed class AssistantSettings : IEntity
     /// </summary>
     public bool CanPropose { get; set; } = true;
 
+    /// <summary>How hard she thinks before replying in chat (<see cref="ThinkingLevels"/>). Quick by default.</summary>
+    public string Thinking { get; set; } = ThinkingLevels.Low;
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public AssistantSettings Clone() => (AssistantSettings)MemberwiseClone();
@@ -42,5 +45,6 @@ public sealed class AssistantSettings : IEntity
         Id != SingleId ? "There's only one set of assistant settings."
         : AboutMe.Length > MaxAboutMe ? $"\"About me\" is too long ({MaxAboutMe} characters max)."
         : Personality.Length > MaxPersonality ? $"Personality is too long ({MaxPersonality} characters max)."
+        : !ThinkingLevels.IsKnown(Thinking) ? "Pick a thinking level from the list."
         : null;
 }

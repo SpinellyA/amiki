@@ -42,7 +42,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
 
     public async Task<string> ChatAsync(
         string instructions, IReadOnlyList<ChatLine> history, string message, IReadOnlyList<ToolDefinition> tools,
-        Func<ToolCall, CancellationToken, Task<JsonNode>> runTool, CancellationToken ct)
+        Func<ToolCall, CancellationToken, Task<JsonNode>> runTool, string? thinking, CancellationToken ct)
     {
         var contents = new JsonArray();
         foreach (var line in history)
@@ -55,6 +55,8 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
 
         var body = Request(instructions, contents);
         body["generationConfig"] = new JsonObject { ["temperature"] = 0.6 };
+        if (!string.IsNullOrWhiteSpace(thinking))
+            body["generationConfig"]!["thinkingConfig"] = new JsonObject { ["thinkingLevel"] = thinking };
         if (tools.Count > 0) body["tools"] = new JsonArray(new JsonObject { ["functionDeclarations"] = Declarations(tools) });
 
         for (var round = 0; ; round++)

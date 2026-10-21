@@ -64,6 +64,13 @@
             else
             {
                 <MudText Typo="Typo.body2">@_status.Model</MudText>
+                <MudSelect T="string" Value="S.Thinking" ValueChanged="v => Edit(s => s.Thinking = v)" Label="Thinking in chat"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" HelperText="@ThinkingLevels.Hint(S.Thinking)">
+                    @foreach (var level in ThinkingLevels.All)
+                    {
+                        <MudSelectItem Value="level">@ThinkingLevels.Name(level)</MudSelectItem>
+                    }
+                </MudSelect>
                 <div class="d-flex align-center gap-2 mt-2 flex-wrap">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Bolt" Disabled="_testing" OnClick="TestAsync">Test connection</MudButton>
                     @if (_testResult is not null)

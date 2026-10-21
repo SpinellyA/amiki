@@ -11,13 +11,20 @@
         {
             <ProposalCard @key="proposal.Id" Proposal="proposal" />
         }
-        @if (Line.Looked is { Count: > 0 } looked)
+        @if (Footer is { Length: > 0 } footer)
         {
-            <div class="chat-looked">Looked at @string.Join(", ", looked)</div>
+            <div class="chat-looked">@footer</div>
         }
     </div>
 </div>
 
 @code {
     [Parameter, EditorRequired] public ChatLine Line { get; set; } = default!;
+
+    // "Looked at tasks · 5.2 s": what she checked, and how long the reply took.
+    private string Footer => string.Join(" · ", new[]
+    {
+        Line.Looked is { Count: > 0 } looked ? $"Looked at {string.Join(", ", looked)}" : null,
+        Line.Seconds is { } seconds ? $"{seconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} s" : null,
+    }.Where(part => part is not null));
 }

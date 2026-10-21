@@ -98,6 +98,10 @@ namespace Amiki.Api.Data.Migrations
                     b.Property<bool>("SeeWeeklyNotes")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Thinking")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 

@@ -34,6 +34,14 @@ public class AssistantChatTests
         Assert.Contains("can't look at any of the user's data", prompt);
     }
 
+    [Fact]
+    public void Thinking_is_quick_by_default_and_must_be_a_known_level()
+    {
+        Assert.Equal(ThinkingLevels.Low, new AssistantSettings().Thinking);
+        Assert.Null(new AssistantSettings { Thinking = ThinkingLevels.ModelDefault }.Validate());
+        Assert.NotNull(new AssistantSettings { Thinking = "ultra" }.Validate());
+    }
+
     // ---------- What she can look up ----------
 
     [Fact]
@@ -104,13 +112,14 @@ public class AssistantChatTests
 
         var reply = await Model(fake).ChatAsync("rules", [new ChatLine(false, "hi"), new ChatLine(true, "hello!")], "how much cash?", [Balances],
             (call, _) => { called.Add(call.Name); return Task.FromResult<JsonNode>(new JsonObject { ["Cash"] = 5089 }); },
-            CancellationToken.None);
+            ThinkingLevels.Low, CancellationToken.None);
 
         Assert.Equal("You have ₱5,089 in Cash.", reply);
         Assert.Equal(["account_balances"], called);
 
         var first = fake.Requests[0];
         Assert.Equal("account_balances", first["tools"]![0]!["functionDeclarations"]![0]!["name"]!.GetValue<string>());
+        Assert.Equal("low", first["generationConfig"]!["thinkingConfig"]!["thinkingLevel"]!.GetValue<string>()); // quick replies by default
         Assert.Equal(["user", "model", "user"], first["contents"]!.AsArray().Select(c => c!["role"]!.GetValue<string>()));
 
         // Second request: her tool call sent back as-is (signature included), then the result.
@@ -124,7 +133,7 @@ public class AssistantChatTests
     {
         var fake = new ScriptedGemini(CallsBalances, SaysDone);
 
-        await Model(fake).ChatAsync("rules", [], "cash?", [Balances], (_, _) => throw new ToolException("bad dates"), CancellationToken.None);
+        await Model(fake).ChatAsync("rules", [], "cash?", [Balances], (_, _) => throw new ToolException("bad dates"), "low", CancellationToken.None);
 
         Assert.Equal("bad dates", fake.Requests[1]["contents"]![2]!["parts"]![0]!["functionResponse"]!["response"]!["result"]!["error"]!.GetValue<string>());
     }
@@ -136,7 +145,7 @@ public class AssistantChatTests
         var busy = new BusyThenOk(failures: 2);
 
         var reply = await new GeminiModel(new HttpClient(busy), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }))
-            .ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), CancellationToken.None);
+            .ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
 
         Assert.Equal("You have ₱5,089 in Cash.", reply);
         Assert.Equal(3, busy.Calls);
@@ -158,7 +167,7 @@ public class AssistantChatTests
         var fake = new ScriptedGemini(CallsBalances);
 
         await Assert.ThrowsAsync<LanguageModelException>(() => Model(fake).ChatAsync("rules", [], "cash?", [Balances],
-            (_, _) => Task.FromResult<JsonNode>(new JsonObject()), CancellationToken.None));
+            (_, _) => Task.FromResult<JsonNode>(new JsonObject()), "low", CancellationToken.None));
         Assert.Equal(GeminiModel.MaxToolRounds + 1, fake.Requests.Count);
     }
 }

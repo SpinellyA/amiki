@@ -32,7 +32,7 @@ public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, Assis
                 var area = allowed.First(t => t.Name == call.Name).Area;
                 if (!looked.Contains(area)) looked.Add(area);
                 return await tools.RunAsync(call, allowed, today, token);
-            }, ct);
+            }, settings.Thinking, ct);
         return new ChatReply(reply, looked, proposed);
     }
 
@@ -46,7 +46,7 @@ public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, Assis
 
     /// <summary>A tiny call to check the key and model work.</summary>
     public Task<string> TestAsync(CancellationToken ct) =>
-        model.ChatAsync("You are Amiki, a friendly assistant.", [], "Say hi to me in under ten words.", [], (_, _) => throw new ToolException("No tools."), ct);
+        model.ChatAsync("You are Amiki, a friendly assistant.", [], "Say hi to me in under ten words.", [], (_, _) => throw new ToolException("No tools."), ThinkingLevels.Low, ct);
 
     private IReadOnlyList<ToolDefinition> Allowed(AssistantSettings settings) => [.. tools.For(settings), .. proposals.For(settings)];
 

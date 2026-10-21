@@ -31,6 +31,7 @@ public interface ILanguageModel
     /// One chat turn. The model may call <paramref name="tools"/> (through <paramref name="runTool"/>,
     /// which returns JSON) any number of times, up to a limit, before giving its text reply.
     /// </summary>
+    /// <param name="thinking">How hard to think first (<see cref="ThinkingLevels"/>); null or empty for the model's default.</param>
     /// <exception cref="LanguageModelException">The model couldn't answer.</exception>
     Task<string> ChatAsync(
         string instructions,
@@ -38,5 +39,6 @@ public interface ILanguageModel
         string message,
         IReadOnlyList<ToolDefinition> tools,
         Func<ToolCall, CancellationToken, Task<JsonNode>> runTool,
+        string? thinking,
         CancellationToken ct);
 }
