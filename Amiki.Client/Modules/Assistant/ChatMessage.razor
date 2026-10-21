@@ -1,0 +1,19 @@
+@* One message: yours on the right, Amiki's on the left with what she looked at underneath. *@
+
+<div class="@($"chat-msg {(Line.FromAmiki ? "amiki" : "me")}")">
+    @if (Line.FromAmiki)
+    {
+        <span class="chat-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Small" /></span>
+    }
+    <div class="chat-body">
+        <div class="chat-bubble">@Line.Text</div>
+        @if (Line.Looked is { Count: > 0 } looked)
+        {
+            <div class="chat-looked">Looked at @string.Join(", ", looked)</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ChatLine Line { get; set; } = default!;
+}

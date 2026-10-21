@@ -1,0 +1,169 @@
+@page "/amiki/settings"
+@implements IDisposable
+@using System.Net.Http.Json
+@inject AssistantSettingsStore Store
+@inject ChatSession Chat
+@inject Amiki.Data.Api Api
+
+<PageTitle>Amiki settings</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Amiki settings</MudText>
+        <MudText Typo="Typo.body2" Class="muted">What she can see and what she knows about you. Saved for all your devices.</MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="AssistantModule.Views" Current="amiki/settings" />
+    </div>
+</div>
+
+<div class="amiki-settings">
+    <MudPaper Outlined="true" Class="widget">
+        <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" /><span>What she can see</span></div>
+        <div class="settings-body">
+            <MudSwitch T="bool" Value="S.SeeTasks" ValueChanged="v => Edit(s => s.SeeTasks = v)" Color="Color.Primary" Label="Tasks" />
+            <MudSwitch T="bool" Value="S.SeeIdeas" ValueChanged="v => Edit(s => s.SeeIdeas = v)" Color="Color.Primary" Label="Ideas" />
+            <MudSwitch T="bool" Value="S.SeeMoney" ValueChanged="v => Edit(s => s.SeeMoney = v)" Color="Color.Primary" Label="Money (balances, spending, transactions)" />
+            <MudSwitch T="bool" Value="S.SeeInbox" ValueChanged="v => Edit(s => s.SeeInbox = v)" Color="Color.Primary" Label="Inbox" />
+            <MudSwitch T="bool" Value="S.SeeWeeklyNotes" ValueChanged="v => Edit(s => s.SeeWeeklyNotes = v)" Color="Color.Primary" Label="Weekly review notes" />
+            <div class="settings-locked">
+                <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
+                <span><b>Diary</b>: never. She has no way to read it.</span>
+            </div>
+        </div>
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="widget">
+        <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" /><span>About you</span></div>
+        <div class="settings-body">
+            <MudTextField T="string" @bind-Value="_aboutMe" Label="What she should always know" Variant="Variant.Outlined" Lines="5" AutoGrow="true"
+                          MaxLength="AssistantSettings.MaxAboutMe" Counter="AssistantSettings.MaxAboutMe" OnBlur="SaveText"
+                          HelperText="Your name, school and course, what you're working on, how you like answers…"
+                          Placeholder="e.g. 3rd-year CS student. Building Amiki on the side. Keep answers short; Taglish is fine." />
+            <MudTextField T="string" @bind-Value="_personality" Label="Her personality" Variant="Variant.Outlined" Lines="2" AutoGrow="true"
+                          MaxLength="AssistantSettings.MaxPersonality" OnBlur="SaveText" Class="mt-3"
+                          HelperText="Leave empty for friendly and to the point."
+                          Placeholder="e.g. A blunt but kind coach who keeps me on track." />
+        </div>
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="widget">
+        <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Memory" Size="Size.Small" /><span>Model</span></div>
+        <div class="settings-body">
+            @if (_status is null)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (!_status.Enabled)
+            {
+                <MudText Typo="Typo.body2">Not set up. Add a Gemini API key on the server (<code>Gemini__ApiKey</code>) to turn Amiki on.</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2">@_status.Model</MudText>
+                <div class="d-flex align-center gap-2 mt-2 flex-wrap">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Bolt" Disabled="_testing" OnClick="TestAsync">Test connection</MudButton>
+                    @if (_testResult is not null)
+                    {
+                        <span class="muted">@_testResult</span>
+                    }
+                </div>
+            }
+        </div>
+    </MudPaper>
+
+    <MudPaper Outlined="true" Class="widget">
+        <div class="widget-head">
+            <MudIcon Icon="@Icons.Material.Outlined.Preview" Size="Size.Small" /><span>What she sees</span>
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="PreviewAsync">@(_preview is null ? "Show" : "Refresh")</MudButton>
+        </div>
+        <div class="settings-body">
+            @if (_preview is null)
+            {
+                <MudText Typo="Typo.body2" Class="muted">The exact instructions and lookups sent with your next message. Nothing else goes along, except the recent chat itself.</MudText>
+            }
+            else
+            {
+                <pre class="settings-preview">@_preview.Instructions</pre>
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1">Lookups she can use (@_preview.Tools.Count)</MudText>
+                @if (_preview.Tools.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="muted">None: everything is switched off above.</MudText>
+                }
+                <ul class="settings-tools">
+                    @foreach (var tool in _preview.Tools)
+                    {
+                        <li>@tool</li>
+                    }
+                </ul>
+            }
+        </div>
+    </MudPaper>
+</div>
+
+@code {
+    private string _aboutMe = "";
+    private string _personality = "";
+    private AssistantStatus? _status;
+    private ContextPreview? _preview;
+    private bool _testing;
+    private string? _testResult;
+
+    private AssistantSettings S => Store.Current;
+
+    protected override async Task OnInitializedAsync()
+    {
+        (_aboutMe, _personality) = (S.AboutMe, S.Personality);
+        Store.Changed += OnChanged;
+        _status = await Chat.StatusAsync();
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void Edit(Action<AssistantSettings> change)
+    {
+        var edited = S.Clone();
+        change(edited);
+        Store.Save(edited);
+        _preview = null; // out of date now
+    }
+
+    // Text saves when you leave the box, not on every keystroke.
+    private void SaveText()
+    {
+        if (_aboutMe == S.AboutMe && _personality == S.Personality) return;
+        Edit(s => (s.AboutMe, s.Personality) = (_aboutMe.Trim(), _personality.Trim()));
+    }
+
+    private async Task PreviewAsync()
+    {
+        try { _preview = await Api.Http.GetFromJsonAsync<ContextPreview>($"api/assistant/preview?now={DateTime.Now:yyyy-MM-ddTHH:mm:ss}", Amiki.Data.Api.Json); }
+        catch (HttpRequestException) { _preview = null; }
+    }
+
+    private async Task TestAsync()
+    {
+        _testing = true;
+        _testResult = "Asking…";
+        try
+        {
+            using var response = await Api.Http.PostAsync("api/assistant/test", null);
+            var body = await response.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            _testResult = response.IsSuccessStatusCode
+                ? $"✓ She says: “{doc.RootElement.GetProperty("reply").GetString()}”"
+                : $"✗ {(doc.RootElement.TryGetProperty("detail", out var d) ? d.GetString() : "Didn't work.")}";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException)
+        {
+            _testResult = "✗ Couldn't reach the server.";
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+}

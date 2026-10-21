@@ -441,6 +441,144 @@ button.sync-status {
     flex-shrink: 0;
 }
 
+/* Chat with Amiki */
+.chat {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 15rem);
+    min-height: 24rem;
+    background: var(--mud-palette-surface);
+    overflow: hidden;
+}
+
+.chat-log {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.chat-empty {
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+}
+
+.chat-empty > .mud-icon-root { color: var(--mud-palette-primary); }
+.chat-starters { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; max-width: 34rem; }
+
+.chat-msg { display: flex; align-items: flex-end; gap: 0.5rem; max-width: min(42rem, 92%); }
+.chat-msg.me { align-self: flex-end; }
+.chat-body { display: flex; flex-direction: column; min-width: 0; }
+
+.chat-avatar {
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--mud-palette-primary) 18%, transparent);
+    color: var(--mud-palette-primary);
+}
+
+.chat-bubble {
+    padding: 0.55rem 0.85rem;
+    border-radius: 16px 16px 16px 4px;
+    background: var(--mud-palette-action-default-hover);
+    font-size: 0.925rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-msg.me .chat-bubble {
+    border-radius: 16px 16px 4px 16px;
+    background: var(--mud-palette-primary);
+    color: var(--mud-palette-primary-text);
+}
+
+.chat-looked { margin: 0.2rem 0 0 0.5rem; font-size: 0.72rem; color: var(--mud-palette-text-secondary); }
+
+.chat-bubble.typing { display: inline-flex; gap: 0.25rem; padding: 0.8rem 0.9rem; }
+
+.chat-bubble.typing span {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--mud-palette-text-secondary);
+    animation: chat-typing 1s ease-in-out infinite;
+}
+
+.chat-bubble.typing span:nth-child(2) { animation-delay: 0.15s; }
+.chat-bubble.typing span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes chat-typing { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .chat-bubble.typing span { animation: none; }
+}
+
+.chat-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.chat-field { margin-top: 0 !important; }
+
+@media (max-width: 599px) {
+    .chat { height: calc(100vh - 17rem); }
+    .chat-log { padding: 0.75rem 0.5rem; }
+}
+
+/* Amiki settings */
+.amiki-settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 959px) {
+    .amiki-settings { grid-template-columns: minmax(0, 1fr); }
+}
+
+.amiki-settings .widget { height: auto; }
+.settings-body { padding: 0.75rem 1rem 0.5rem; }
+
+.settings-locked {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: var(--mud-palette-action-default-hover);
+    font-size: 0.85rem;
+}
+
+.settings-preview {
+    max-height: 22rem;
+    overflow: auto;
+    margin: 0;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: var(--mud-palette-background);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.settings-tools { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; color: var(--mud-palette-text-secondary); }
+
 /* Smart Inbox: Amiki's guess under a note. */
 .suggestion {
     --suggestion: var(--mud-palette-primary);

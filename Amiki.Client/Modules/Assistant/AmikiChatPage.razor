@@ -1,0 +1,116 @@
+@page "/amiki"
+@implements IDisposable
+@inject ChatSession Chat
+@inject IJSRuntime JS
+
+<PageTitle>Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Amiki</MudText>
+        <MudText Typo="Typo.body2" Class="muted">
+            Ask about your tasks, ideas, money or inbox. She can look things up but not change anything yet, and never sees your diary.
+        </MudText>
+    </div>
+    <div class="head-actions">
+        <ViewSwitch Views="AssistantModule.Views" Current="amiki" />
+        @if (Chat.Lines.Count > 0)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.AddComment" OnClick="Chat.NewChat">New chat</MudButton>
+        }
+    </div>
+</div>
+
+@if (_status is { Enabled: false })
+{
+    <MudAlert Severity="Severity.Info" Class="mb-3">
+        Amiki needs an AI model to talk. Add a Gemini API key on the server (Gemini__ApiKey), then reload.
+    </MudAlert>
+}
+
+<MudPaper Outlined="true" Class="chat">
+    <div class="chat-log" id="chat-log" aria-live="polite">
+        @if (Chat.Lines.Count == 0)
+        {
+            <div class="chat-empty">
+                <MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Large" />
+                <MudText Typo="Typo.h6">Hi! What do you want to know?</MudText>
+                <div class="chat-starters">
+                    @foreach (var starter in Starters)
+                    {
+                        <MudChip T="string" Variant="Variant.Outlined" OnClick="() => SendAsync(starter)" Disabled="!Ready">@starter</MudChip>
+                    }
+                </div>
+            </div>
+        }
+        @foreach (var line in Chat.Lines)
+        {
+            <ChatMessage Line="line" />
+        }
+        @if (Chat.Busy)
+        {
+            <div class="chat-msg amiki">
+                <span class="chat-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Small" /></span>
+                <div class="chat-bubble typing" aria-label="Amiki is thinking"><span></span><span></span><span></span></div>
+            </div>
+        }
+        @if (Chat.Problem is { } problem)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mx-2">@problem</MudAlert>
+        }
+    </div>
+    <div class="chat-input">
+        <MudTextField T="string" @bind-Value="_draft" Immediate="true" Placeholder="Message Amiki…" Variant="Variant.Outlined"
+                      OnKeyDown="OnKey" Disabled="!Ready" Class="chat-field" MaxLength="ChatRequest.MaxMessage"
+                      aria-label="Message Amiki" />
+        <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary" Variant="Variant.Filled" aria-label="Send"
+                       Disabled="@(!Ready || Chat.Busy || string.IsNullOrWhiteSpace(_draft))" OnClick="() => SendAsync(_draft)" />
+    </div>
+</MudPaper>
+
+@code {
+    private static readonly string[] Starters =
+    [
+        "What's due this week?",
+        "How much did I spend this month?",
+        "Which ideas have been parked the longest?",
+        "What's still in my inbox?",
+    ];
+
+    private string _draft = "";
+    private AssistantStatus? _status;
+    private int _shownLines = -1;
+
+    private bool Ready => _status?.Enabled == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Chat.Changed += OnChanged;
+        _status = await Chat.StatusAsync();
+    }
+
+    public void Dispose() => Chat.Changed -= OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    // Keep the newest message in view.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var count = Chat.Lines.Count + (Chat.Busy ? 1 : 0);
+        if (count == _shownLines) return;
+        _shownLines = count;
+        await JS.InvokeVoidAsync("amiki.scrollToBottom", "chat-log");
+    }
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SendAsync(_draft);
+    }
+
+    private async Task SendAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || Chat.Busy) return;
+        _draft = "";
+        await Chat.SendAsync(text);
+    }
+}

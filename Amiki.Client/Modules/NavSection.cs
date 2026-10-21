@@ -3,6 +3,8 @@ namespace Amiki.Modules;
 /// <summary>The side nav's headings, listed in this order. The name is the heading shown.</summary>
 public enum NavSection
 {
+    /// <summary>Amiki herself: chat and her settings.</summary>
+    Assistant,
     /// <summary>Getting things out of your head and deciding what to do: Inbox, Tasks, Ideas.</summary>
     Plan,
     /// <summary>Things you keep count of: Money (later habits, budgets).</summary>

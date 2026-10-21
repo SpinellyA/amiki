@@ -64,6 +64,45 @@ namespace Amiki.Api.Data.Migrations
                     b.ToTable("audit_log", (string)null);
                 });
 
+            modelBuilder.Entity("Amiki.Modules.Assistant.AssistantSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AboutMe")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Personality")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("SeeIdeas")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeeInbox")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeeMoney")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeeTasks")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SeeWeeklyNotes")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("assistant_settings", (string)null);
+                });
+
             modelBuilder.Entity("Amiki.Modules.Diary.DiaryEntry", b =>
                 {
                     b.Property<Guid>("Id")

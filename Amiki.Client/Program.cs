@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using Amiki;
 using Amiki.Data;
+using Amiki.Modules.Assistant;
 using Amiki.Modules.Diary;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
@@ -35,6 +36,7 @@ builder.Services.AddSingleton<DataSync>();
 builder.Services.AddSingleton<DevicePreferences>();
 
 // Modules. Each one registers its own services plus a ModuleInfo; the shell picks them up from DI.
+builder.Services.AddAssistantModule();
 builder.Services.AddInboxModule();
 builder.Services.AddTasksModule();
 builder.Services.AddIdeasModule();

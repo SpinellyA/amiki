@@ -48,6 +48,11 @@
                     if (document.visibilityState === 'visible') dotnet.invokeMethodAsync(method);
                 });
             },
+            // Keeps the newest chat message in view.
+            scrollToBottom(id) {
+                const el = document.getElementById(id);
+                if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+            },
             // Removes the on-device copy of your data (used when signing out).
             clearCache() {
                 Object.keys(localStorage).filter(k => k.startsWith('amiki.cache')).forEach(k => localStorage.removeItem(k));

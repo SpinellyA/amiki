@@ -1,12 +1,13 @@
 @*
     Floating "+" on every page: jot something into the Inbox without leaving what you're doing.
-    Hidden on the Inbox page itself, which already has a capture field at the top.
+    Hidden on the Inbox page itself, which already has a capture field at the top, and on the
+    Amiki chat, where it would sit on top of the send button.
 *@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject IDialogService Dialogs
 
-@if (!OnInboxPage)
+@if (!Hidden)
 {
     <MudTooltip Text="Quick capture to Inbox" Placement="Placement.Left" RootClass="quick-capture">
         <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" aria-label="Quick capture to Inbox" OnClick="Open" />
@@ -14,7 +15,7 @@
 }
 
 @code {
-    private bool OnInboxPage => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].TrimEnd('/') == "inbox";
+    private bool Hidden => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].TrimEnd('/') is "inbox" or "amiki";
 
     protected override void OnInitialized() => Nav.LocationChanged += OnLocationChanged;
     public void Dispose() => Nav.LocationChanged -= OnLocationChanged;

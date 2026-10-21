@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Amiki.Core;
+using Amiki.Modules.Assistant;
 using Amiki.Modules.Diary;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
@@ -29,6 +30,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<WeeklyNote> WeeklyNotes => Set<WeeklyNote>();
     public DbSet<DiaryEntry> Diary => Set<DiaryEntry>();
+    public DbSet<AssistantSettings> AssistantSettings => Set<AssistantSettings>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -121,6 +123,13 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             entry.ToTable("diary_entries");
             entry.Property(e => e.Text).HasMaxLength(DiaryEntry.MaxLength);
             entry.HasIndex(e => e.Day).IsUnique();
+        });
+
+        model.Entity<AssistantSettings>(settings =>
+        {
+            settings.ToTable("assistant_settings");
+            settings.Property(s => s.AboutMe).HasMaxLength(Modules.Assistant.AssistantSettings.MaxAboutMe);
+            settings.Property(s => s.Personality).HasMaxLength(Modules.Assistant.AssistantSettings.MaxPersonality);
         });
 
         // A plan is saved and loaded as one unit, so its items live in a jsonb column on the
