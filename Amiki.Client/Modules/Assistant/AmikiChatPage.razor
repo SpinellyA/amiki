@@ -94,10 +94,10 @@
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    // Keep the newest message in view.
+    // Keep the newest message (or the reason there's no answer) in view.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var count = Chat.Lines.Count + (Chat.Busy ? 1 : 0);
+        var count = Chat.Lines.Count * 4 + (Chat.Busy ? 1 : 0) + (Chat.Problem is null ? 0 : 2);
         if (count == _shownLines) return;
         _shownLines = count;
         await JS.InvokeVoidAsync("amiki.scrollToBottom", "chat-log");

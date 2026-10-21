@@ -9,8 +9,14 @@ namespace Amiki.Api.Assistant;
 /// </summary>
 public interface ILanguageModel
 {
-    /// <summary>Name shown in settings, e.g. "Gemini · gemini-2.5-flash".</summary>
+    /// <summary>Name shown in settings, e.g. "Gemini · chat: gemini-flash-latest · background: …".</summary>
     string Description { get; }
+
+    /// <summary>
+    /// Anything worth telling you about the last chat answer, e.g. that a backup model answered
+    /// because the main one hit its daily limit. Null when nothing unusual happened.
+    /// </summary>
+    string? LastNote { get; }
 
     /// <summary>
     /// Asks the model and returns its answer as JSON matching <paramref name="schema"/> (an

@@ -53,7 +53,7 @@ public sealed class ChatSession(Api api)
             var timer = System.Diagnostics.Stopwatch.StartNew();
             using var response = await api.Http.PostAsJsonAsync("api/assistant/chat", request, Api.Json);
             if (response.IsSuccessStatusCode && await response.Content.ReadFromJsonAsync<ChatReply>(Api.Json) is { } reply)
-                Add(new ChatLine(true, reply.Reply, reply.Looked, reply.Proposals, Math.Round(timer.Elapsed.TotalSeconds, 1)));
+                Add(new ChatLine(true, reply.Reply, reply.Looked, reply.Proposals, Math.Round(timer.Elapsed.TotalSeconds, 1), reply.Note));
             else
                 Problem = await ReasonAsync(response);
         }

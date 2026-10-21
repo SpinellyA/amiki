@@ -81,6 +81,27 @@ public class AssistantChatTests
         Assert.Throws<ToolException>(() => AssistantTools.Range(new JsonObject { ["from"] = "last week" }, Now.Date));
     }
 
+    [Fact]
+    public void Spending_by_week_finds_the_most_expensive_week_and_what_drove_it()
+    {
+        AssistantTools.Flow Spent(DateTime day, decimal amount, string category, string note) => new(day, Amiki.Modules.Finance.TxKind.Expense, amount, category, "Cash", note);
+
+        var result = AssistantTools.PerPeriod(
+        [
+            Spent(new DateTime(2026, 9, 14), 80, "Food", "Lunch"),                 // week of Sep 14
+            Spent(new DateTime(2026, 9, 23), 3000, "School", "Tuition installment"), // week of Sep 21
+            Spent(new DateTime(2026, 9, 25), 120, "Food", "Milk tea"),
+            new(new DateTime(2026, 9, 26), Amiki.Modules.Finance.TxKind.Income, 1500, "Allowance", "Cash", "Baon"),
+        ], byMonth: false);
+
+        var top = result["most_spent"]!;
+        Assert.Equal("2026-09-21 (Mon)", top["week_of"]!.GetValue<string>());
+        Assert.Equal(3120m, top["spent"]!.GetValue<decimal>());
+        Assert.Equal(1500m, top["received"]!.GetValue<decimal>());
+        Assert.Equal("Tuition installment", top["biggest"]![0]!["note"]!.GetValue<string>());
+        Assert.Equal(2, result["periods"]!.AsArray().Count);
+    }
+
     // ---------- Talking to Gemini ----------
 
     private sealed class ScriptedGemini(params string[] replies) : HttpMessageHandler
@@ -136,6 +157,51 @@ public class AssistantChatTests
         await Model(fake).ChatAsync("rules", [], "cash?", [Balances], (_, _) => throw new ToolException("bad dates"), "low", CancellationToken.None);
 
         Assert.Equal("bad dates", fake.Requests[1]["contents"]![2]!["parts"]![0]!["functionResponse"]!["response"]!["result"]!["error"]!.GetValue<string>());
+    }
+
+    private const string DailyLimit = """
+        {"error":{"code":429,"message":"quota","details":[
+          {"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaValue":"20"}]},
+          {"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"57821s"}]}}
+        """;
+
+    [Fact]
+    public void Limits_say_which_one_and_when_it_lifts()
+    {
+        Assert.Equal("The free daily limit for gemini-3.8-flash (20 requests) is used up; it resets in about 16 hours.",
+            GeminiModel.LimitMessage(DailyLimit, "gemini-3.8-flash"));
+        Assert.Equal("Gemini's free per-minute limit for m was reached; try again in about 40 seconds.",
+            GeminiModel.LimitMessage("""{"error":{"details":[{"violations":[{"quotaId":"GenerateRequestsPerMinute"}]},{"retryDelay":"39.2s"}]}}""", "m"));
+        Assert.Equal("Gemini's free-tier limit was reached. Try again later.", GeminiModel.LimitMessage("not json", "m"));
+    }
+
+    [Fact]
+    public async Task When_the_chat_model_is_out_of_quota_the_light_model_answers()
+    {
+        var fake = new LimitedThenOk();
+        var model = new GeminiModel(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = "k", Model = "big", LightModel = "small" }));
+
+        var reply = await model.ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
+
+        Assert.Equal("You have ₱5,089 in Cash.", reply);
+        Assert.Equal(["big", "small"], fake.Models);
+        Assert.DoesNotContain("thinkingConfig", fake.LastBody!); // the chat model's thinking setting isn't sent to the backup
+        Assert.StartsWith("answered by small: The free daily limit", model.LastNote);
+    }
+
+    private sealed class LimitedThenOk : HttpMessageHandler
+    {
+        public List<string> Models { get; } = [];
+        public string? LastBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Models.Add(request.RequestUri!.AbsolutePath.Split('/')[^1].Split(':')[0]);
+            LastBody = await request.Content!.ReadAsStringAsync(ct);
+            return Models.Count == 1
+                ? new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent(DailyLimit) }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(SaysDone) };
+        }
     }
 
     [Fact]

@@ -504,6 +504,8 @@ button.sync-status {
 }
 
 .chat-looked { margin: 0.2rem 0 0 0.5rem; font-size: 0.72rem; color: var(--mud-palette-text-secondary); }
+.chat-note { display: flex; align-items: flex-start; gap: 0.25rem; color: var(--mud-palette-warning); }
+.chat-note .mud-icon-root { font-size: 0.9rem; flex-shrink: 0; }
 
 /* A change she suggests, waiting for "Do it". */
 .proposal {

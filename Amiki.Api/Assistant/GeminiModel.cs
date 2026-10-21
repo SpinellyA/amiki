@@ -19,6 +19,8 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
 
     public string Description => $"Gemini · chat: {options.Value.Model} · background: {options.Value.LightModel}";
 
+    public string? LastNote { get; private set; }
+
     public async Task<string> AskForJsonAsync(string instructions, string input, JsonObject schema, CancellationToken ct)
     {
         var body = Request(instructions, new JsonArray(UserText(input)));
@@ -59,9 +61,24 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
             body["generationConfig"]!["thinkingConfig"] = new JsonObject { ["thinkingLevel"] = thinking };
         if (tools.Count > 0) body["tools"] = new JsonArray(new JsonObject { ["functionDeclarations"] = Declarations(tools) });
 
+        var model = options.Value.Model;
+        LastNote = null;
         for (var round = 0; ; round++)
         {
-            var content = await SendAsync(options.Value.Model, body, ct);
+            JsonObject content;
+            try
+            {
+                content = await SendAsync(model, body, ct);
+            }
+            catch (LanguageModelException ex) when (ex.RateLimited && model != options.Value.LightModel)
+            {
+                // Out of quota on the chat model: carry on with the light one, which has its own.
+                // (Thinking settings are for the chat model, so they're left out.)
+                model = options.Value.LightModel;
+                (body["generationConfig"] as JsonObject)?.Remove("thinkingConfig");
+                LastNote = $"answered by {model}: {ex.Message}";
+                content = await SendAsync(model, body, ct);
+            }
             var calls = content["parts"]?.AsArray()
                 .Select(p => p?["functionCall"])
                 .OfType<JsonObject>()
@@ -133,6 +150,10 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
             {
                 throw new LanguageModelException("Couldn't reach Gemini. Try again in a moment.");
             }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new LanguageModelException("Gemini took too long to answer. Try again, or ask something smaller.");
+            }
 
             // Busy or briefly down: wait and try again, a couple of times.
             var busy = response.StatusCode is HttpStatusCode.ServiceUnavailable or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout;
@@ -147,7 +168,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
                 throw new LanguageModelException("Gemini is very busy right now. Try again in a minute.");
             var answer = await response.Content.ReadAsStringAsync(ct);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                throw new LanguageModelException("Gemini's free-tier limit was reached. Try again in a minute.", rateLimited: true);
+                throw new LanguageModelException(LimitMessage(answer, model), rateLimited: true);
             if (!response.IsSuccessStatusCode)
                 throw new LanguageModelException($"Gemini said no ({(int)response.StatusCode}): {ErrorMessage(answer)}");
 
@@ -165,6 +186,38 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
     {
         var text = string.Concat(content["parts"]?.AsArray().Select(p => p?["text"]?.GetValue<string>()) ?? []);
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
+
+    /// <summary>
+    /// Which limit was hit and when it lifts, from Gemini's error details: the free tier has a
+    /// per-minute and a per-day limit for each model (e.g. 20 a day for gemini-3.8-flash).
+    /// </summary>
+    internal static string LimitMessage(string json, string model)
+    {
+        try
+        {
+            var details = JsonNode.Parse(json)?["error"]?["details"]?.AsArray() ?? [];
+            var violation = details.Select(d => d?["violations"]?[0]).OfType<JsonObject>().FirstOrDefault();
+            var daily = violation?["quotaId"]?.GetValue<string>().Contains("PerDay", StringComparison.OrdinalIgnoreCase) == true;
+            var limit = violation?["quotaValue"]?.ToString();
+            var retry = details.Select(d => d?["retryDelay"]?.GetValue<string>()).OfType<string>().FirstOrDefault();
+            var wait = retry is not null && double.TryParse(retry.TrimEnd('s'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s)
+                ? TimeSpan.FromSeconds(s) : (TimeSpan?)null;
+            var when = wait switch
+            {
+                null => daily ? "tomorrow" : "in a minute",
+                { TotalMinutes: < 2 } w => $"in about {Math.Max(1, (int)Math.Ceiling(w.TotalSeconds))} seconds",
+                { TotalHours: < 2 } w => $"in about {(int)Math.Ceiling(w.TotalMinutes)} minutes",
+                var w => $"in about {(int)Math.Round(w.Value.TotalHours)} hours",
+            };
+            return daily
+                ? $"The free daily limit for {model}{(limit is null ? "" : $" ({limit} requests)")} is used up; it resets {when}."
+                : $"Gemini's free per-minute limit for {model} was reached; try again {when}.";
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            return "Gemini's free-tier limit was reached. Try again later.";
+        }
     }
 
     private static string ErrorMessage(string json)

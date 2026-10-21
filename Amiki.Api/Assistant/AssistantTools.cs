@@ -22,7 +22,7 @@ public sealed class AssistantTools(AmikiDb db)
         var tools = new List<ToolDefinition>();
         if (settings.SeeTasks) tools.Add(ListTasks);
         if (settings.SeeIdeas) tools.Add(ListIdeas);
-        if (settings.SeeMoney) tools.AddRange([AccountBalances, MoneySummary, ListTransactions]);
+        if (settings.SeeMoney) tools.AddRange([AccountBalances, MoneySummary, SpendingByPeriod, ListTransactions]);
         if (settings.SeeInbox) tools.Add(ListInbox);
         if (settings.SeeWeeklyNotes) tools.Add(WeeklyNotes);
         return tools;
@@ -38,6 +38,7 @@ public sealed class AssistantTools(AmikiDb db)
             "list_ideas" => await IdeasAsync(call.Args, ct),
             "account_balances" => await BalancesAsync(ct),
             "money_summary" => await SummaryAsync(call.Args, today, ct),
+            "spending_by_period" => await ByPeriodAsync(call.Args, today, ct),
             "list_transactions" => await TransactionsAsync(call.Args, today, ct),
             "list_inbox" => await InboxAsync(ct),
             "weekly_notes" => await NotesAsync(call.Args, ct),
@@ -76,6 +77,16 @@ public sealed class AssistantTools(AmikiDb db)
               "from":{"type":"string","description":"yyyy-MM-dd, inclusive"},
               "to":{"type":"string","description":"yyyy-MM-dd, inclusive"}},
              "required":["from","to"]}
+            """), "money");
+
+    private static readonly ToolDefinition SpendingByPeriod = new("spending_by_period",
+        "Spending and income per week (Monday to Sunday) or per month across a date range, each with its top spending categories and biggest transactions. Use this for 'most expensive week/month', trends, or comparing periods: one call covers the whole range.",
+        Schema("""
+            {"type":"object","properties":{
+              "period":{"type":"string","enum":["week","month"]},
+              "from":{"type":"string","description":"yyyy-MM-dd, inclusive; omit for about the last 3 months"},
+              "to":{"type":"string","description":"yyyy-MM-dd, inclusive; omit for today"}},
+             "required":["period"]}
             """), "money");
 
     private static readonly ToolDefinition ListTransactions = new("list_transactions",
@@ -199,6 +210,48 @@ public sealed class AssistantTools(AmikiDb db)
         };
     }
 
+    private async Task<JsonNode> ByPeriodAsync(JsonObject args, DateTime today, CancellationToken ct)
+    {
+        var byMonth = Str(args, "period") == "month";
+        var range = args.DeepClone().AsObject();
+        if (Str(args, "from") is null) range["from"] = today.AddDays(-91).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var (from, to) = Range(range, today);
+        return PerPeriod(await FlowsAsync(from, to, ct), byMonth);
+    }
+
+    /// <summary>Groups real money flows into weeks or months, newest first, with what drove each period's spending.</summary>
+    internal static JsonObject PerPeriod(IEnumerable<Flow> flows, bool byMonth)
+    {
+        static DateTime WeekOf(DateTime d) => d.Date.AddDays(-(((int)d.DayOfWeek + 6) % 7));
+        var periods = flows
+            .GroupBy(f => byMonth ? new DateTime(f.Date.Year, f.Date.Month, 1) : WeekOf(f.Date))
+            .OrderByDescending(g => g.Key)
+            .Select(g =>
+            {
+                var spending = g.Where(f => f.Kind == TxKind.Expense).ToList();
+                return new JsonObject
+                {
+                    [byMonth ? "month" : "week_of"] = byMonth ? g.Key.ToString("MMMM yyyy", CultureInfo.InvariantCulture) : Day(g.Key),
+                    ["spent"] = spending.Sum(f => f.Amount),
+                    ["received"] = g.Where(f => f.Kind == TxKind.Income).Sum(f => f.Amount),
+                    ["top_categories"] = new JsonObject(spending.GroupBy(f => f.Category)
+                        .OrderByDescending(c => c.Sum(f => f.Amount)).Take(3)
+                        .Select(c => KeyValuePair.Create(c.Key, (JsonNode?)JsonValue.Create(c.Sum(f => f.Amount))))),
+                    ["biggest"] = new JsonArray(spending.OrderByDescending(f => f.Amount).Take(3)
+                        .Select(f => (JsonNode)new JsonObject { ["date"] = Day(f.Date), ["amount"] = f.Amount, ["category"] = f.Category, ["note"] = f.Note })
+                        .ToArray()),
+                };
+            })
+            .ToList();
+        var top = periods.OrderByDescending(p => p["spent"]!.GetValue<decimal>()).FirstOrDefault();
+        return new JsonObject
+        {
+            ["periods"] = new JsonArray(periods.Cast<JsonNode>().ToArray()),
+            ["most_spent"] = top?.DeepClone(),
+            ["note"] = "Periods with no money in or out are left out.",
+        };
+    }
+
     private async Task<JsonNode> TransactionsAsync(JsonObject args, DateTime today, CancellationToken ct)
     {
         var (from, to) = Range(args, today);
@@ -240,7 +293,7 @@ public sealed class AssistantTools(AmikiDb db)
 
     // ---------- Helpers ----------
 
-    private sealed record Flow(DateTime Date, TxKind Kind, decimal Amount, string Category, string Account, string Note);
+    internal sealed record Flow(DateTime Date, TxKind Kind, decimal Amount, string Category, string Account, string Note);
 
     // Real money in and out, like the Money page: no balance fixes; transfer fees count as spending.
     private async Task<List<Flow>> FlowsAsync(DateTime from, DateTime to, CancellationToken ct)

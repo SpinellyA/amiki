@@ -33,7 +33,7 @@ public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, Assis
                 if (!looked.Contains(area)) looked.Add(area);
                 return await tools.RunAsync(call, allowed, today, token);
             }, settings.Thinking, ct);
-        return new ChatReply(reply, looked, proposed);
+        return new ChatReply(reply, looked, proposed, model.LastNote);
     }
 
     public async Task<ContextPreview> PreviewAsync(DateTime now, CancellationToken ct)

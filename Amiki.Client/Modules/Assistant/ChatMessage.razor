@@ -15,6 +15,10 @@
         {
             <div class="chat-looked">@footer</div>
         }
+        @if (Line.Note is { } note)
+        {
+            <div class="chat-looked chat-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /> @note</div>
+        }
     </div>
 </div>
 
