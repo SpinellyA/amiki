@@ -106,6 +106,31 @@ namespace Amiki.Api.Data.Migrations
                     b.ToTable("assistant_settings", (string)null);
                 });
 
+            modelBuilder.Entity("Amiki.Modules.Assistant.DailyBriefing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Day")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("WrittenAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Day")
+                        .IsUnique();
+
+                    b.ToTable("daily_briefings", (string)null);
+                });
+
             modelBuilder.Entity("Amiki.Modules.Diary.DiaryEntry", b =>
                 {
                     b.Property<Guid>("Id")

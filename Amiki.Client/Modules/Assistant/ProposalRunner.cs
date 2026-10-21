@@ -13,7 +13,7 @@ namespace Amiki.Modules.Assistant;
 /// </summary>
 public sealed class ProposalRunner(
     ChatSession chat, TaskStore tasks, TaskActions taskActions, FinanceStore money, FinanceActions moneyActions,
-    IdeaStore ideas, InboxStore inbox, ISnackbar snackbar)
+    IdeaStore ideas, InboxStore inbox, AssistantSettingsStore settings, ISnackbar snackbar)
 {
     /// <summary>Does it as suggested.</summary>
     public void Do(AssistantProposal p)
@@ -25,6 +25,7 @@ public sealed class ProposalRunner(
             ProposalKind.AddIdea => AddIdea(p),
             ProposalKind.CompleteTask => CompleteTask(p),
             ProposalKind.AddInboxNote => AddInboxNote(p),
+            ProposalKind.Remember => Remember(p),
             _ => null,
         };
         if (undo is null) return;
@@ -99,6 +100,22 @@ public sealed class ProposalRunner(
         var item = new InboxItem { Text = p.Title };
         inbox.Restore(item);
         return () => inbox.Remove(item);
+    }
+
+    // Adds the fact as a new line of "About you", which you can still edit in her settings.
+    private Action? Remember(AssistantProposal p)
+    {
+        var before = settings.Current;
+        var aboutMe = string.IsNullOrWhiteSpace(before.AboutMe) ? p.Title : $"{before.AboutMe.TrimEnd()}\n{p.Title}";
+        if (aboutMe.Length > AssistantSettings.MaxAboutMe)
+        {
+            snackbar.Add("“About you” is full. Tidy it up in Amiki's settings first.", Severity.Warning);
+            return null;
+        }
+        var updated = before.Clone();
+        updated.AboutMe = aboutMe;
+        settings.Save(updated);
+        return () => settings.Save(before);
     }
 
     private static TaskItem TaskFrom(AssistantProposal p) =>

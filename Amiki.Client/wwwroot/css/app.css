@@ -572,6 +572,48 @@ button.sync-status {
     .chat-log { padding: 0.75rem 0.5rem; }
 }
 
+/* Dashboard: from Amiki */
+.briefing { height: auto; }
+.briefing .widget-head .chat-avatar { width: 1.6rem; height: 1.6rem; }
+.briefing-body { padding: 0.6rem 1rem 0.5rem; }
+
+.briefing-text {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+.briefing-text.thinking { color: var(--mud-palette-text-secondary); animation: suggestion-pulse 1.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+    .briefing-text.thinking { animation: none; }
+}
+
+.briefing-nudges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+
+.nudge {
+    --nudge: var(--mud-palette-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--nudge) 40%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--nudge) 8%, transparent);
+    color: inherit;
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.nudge:hover { background: color-mix(in srgb, var(--nudge) 16%, transparent); }
+.nudge .mud-icon-root { color: var(--nudge); flex-shrink: 0; }
+.nudge.overdue { --nudge: var(--mud-palette-error); }
+.nudge.due-today, .nudge.review { --nudge: var(--mud-palette-primary); }
+.nudge.balance, .nudge.spending { --nudge: var(--mud-palette-warning); }
+.nudge.ideas { --nudge: var(--mud-palette-warning); }
+.nudge.inbox { --nudge: var(--mud-palette-info); }
+
 /* Amiki settings */
 .amiki-settings {
     display: grid;

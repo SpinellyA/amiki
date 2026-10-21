@@ -26,6 +26,7 @@ public sealed class AssistantProposals(AmikiDb db)
         if (settings.SeeMoney) tools.Add(LogMoney);
         if (settings.SeeIdeas) tools.Add(AddIdea);
         if (settings.SeeInbox) tools.Add(InboxNote);
+        tools.Add(Remember);
         return tools;
     }
 
@@ -36,6 +37,7 @@ public sealed class AssistantProposals(AmikiDb db)
         "propose_add_idea" => IdeaProposal(call.Args),
         "propose_complete_task" => await CompleteProposalAsync(call.Args, ct),
         "propose_inbox_note" => new AssistantProposal(Guid.NewGuid(), ProposalKind.AddInboxNote, Required(call.Args, "text", 2000)),
+        "propose_remember" => new AssistantProposal(Guid.NewGuid(), ProposalKind.Remember, Required(call.Args, "fact", MaxFact)),
         _ => throw new ToolException($"Unknown tool {call.Name}."),
     };
 
@@ -88,6 +90,12 @@ public sealed class AssistantProposals(AmikiDb db)
     private static readonly ToolDefinition InboxNote = new("propose_inbox_note",
         "Suggest jotting something into the Inbox to sort later (when it's unclear what it is).",
         Schema("""{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}"""), "inbox");
+
+    private const int MaxFact = 300;
+
+    private static readonly ToolDefinition Remember = new("propose_remember",
+        "Suggest remembering a lasting fact about the user (added to 'About you' in your settings), e.g. their sem end date or a preference. Use when they ask you to remember something, or share something clearly worth keeping.",
+        Schema("""{"type":"object","properties":{"fact":{"type":"string","description":"One short sentence, written about the user, e.g. 'Sem ends Dec 12.'"}},"required":["fact"]}"""), "memory");
 
     private static JsonObject Schema(string json) => (JsonObject)JsonNode.Parse(json)!;
 

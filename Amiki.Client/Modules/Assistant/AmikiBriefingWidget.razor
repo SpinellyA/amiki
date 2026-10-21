@@ -1,0 +1,90 @@
+@*
+    Top of the dashboard: Amiki's note for today (written once a day) and the current heads-ups,
+    each linking to where you'd deal with it. The note needs a model key; the heads-ups don't.
+*@
+@using System.Net.Http.Json
+@inject Amiki.Data.Api Api
+
+<MudPaper Outlined="true" Class="widget briefing">
+    <div class="widget-head">
+        <span class="chat-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Small" /></span>
+        <span>From Amiki</span>
+        <MudSpacer />
+        @if (_briefing?.WrittenAt is { } at)
+        {
+            <span class="muted widget-hint">@When.Short(at)</span>
+        }
+        <MudIconButton Icon="@Icons.Material.Outlined.Refresh" Size="Size.Small" aria-label="Write today's note again"
+                       title="Write today's note again" Disabled="_loading" OnClick="() => LoadAsync(rewrite: true)" />
+        <MudLink Href="amiki" Typo="Typo.body2">Ask her →</MudLink>
+    </div>
+
+    <div class="briefing-body">
+        @if (_loading && _briefing?.Text is null)
+        {
+            <div class="briefing-text thinking">Writing today's note…</div>
+        }
+        else if (_briefing?.Text is { } text)
+        {
+            <div class="briefing-text">@text</div>
+        }
+        else if (_briefing?.Problem is { } problem)
+        {
+            <div class="briefing-text muted">No note today: @problem</div>
+        }
+
+        @if (_briefing is { Nudges.Count: > 0 } b)
+        {
+            <div class="briefing-nudges">
+                @foreach (var nudge in b.Nudges)
+                {
+                    <a href="@nudge.Href" class="@($"nudge {nudge.Kind}")">
+                        <MudIcon Icon="@IconOf(nudge.Kind)" Size="Size.Small" />
+                        <span>@nudge.Text</span>
+                    </a>
+                }
+            </div>
+        }
+        else if (_briefing is not null && _briefing.Text is null && _briefing.Problem is null)
+        {
+            <div class="briefing-text muted">All clear today. ✨</div>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    private Briefing? _briefing;
+    private bool _loading;
+
+    protected override Task OnInitializedAsync() => LoadAsync(rewrite: false);
+
+    private async Task LoadAsync(bool rewrite)
+    {
+        _loading = true;
+        try
+        {
+            using var response = await Api.Http.PostAsJsonAsync("api/assistant/briefing", new BriefingRequest(DateTime.Now, rewrite), Amiki.Data.Api.Json);
+            if (response.IsSuccessStatusCode) _briefing = await response.Content.ReadFromJsonAsync<Briefing>(Amiki.Data.Api.Json);
+        }
+        catch (HttpRequestException)
+        {
+            // Offline: the rest of the dashboard still works from the saved copy.
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string IconOf(string kind) => kind switch
+    {
+        "overdue" => Icons.Material.Outlined.EventBusy,
+        "due-today" => Icons.Material.Outlined.Today,
+        "review" => Icons.Material.Outlined.EventNote,
+        "balance" => Icons.Material.Outlined.FactCheck,
+        "spending" => Icons.Material.Outlined.TrendingUp,
+        "ideas" => Icons.Material.Outlined.Lightbulb,
+        "inbox" => Icons.Material.Outlined.Inbox,
+        _ => Icons.Material.Outlined.Info,
+    };
+}

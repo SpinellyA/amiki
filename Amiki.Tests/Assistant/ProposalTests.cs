@@ -13,7 +13,7 @@ public class ProposalTests
     {
         var proposals = new AssistantProposals(null!);
 
-        Assert.Equal(["propose_add_task", "propose_complete_task", "propose_log_money", "propose_add_idea", "propose_inbox_note"],
+        Assert.Equal(["propose_add_task", "propose_complete_task", "propose_log_money", "propose_add_idea", "propose_inbox_note", "propose_remember"],
             proposals.For(new AssistantSettings()).Select(t => t.Name));
         Assert.Empty(proposals.For(new AssistantSettings { CanPropose = false }));
         Assert.DoesNotContain(proposals.For(new AssistantSettings { SeeMoney = false }), t => t.Area == "money");

@@ -11,6 +11,7 @@ namespace Amiki.Api.Assistant;
 ///   POST /api/assistant/chat               one chat turn
 ///   GET  /api/assistant/preview?now=…      exactly what she's told before your next message
 ///   POST /api/assistant/test               a tiny call to check the key works
+///   POST /api/assistant/briefing           today's note from Amiki (written once a day) and fresh nudges
 ///   /api/assistant-settings                her settings (the usual get / save / delete)
 /// </summary>
 public static class AssistantEndpoints
@@ -22,6 +23,7 @@ public static class AssistantEndpoints
         services.AddScoped<InboxTriageService>();
         services.AddScoped<AssistantTools>();
         services.AddScoped<AssistantProposals>();
+        services.AddScoped<BriefingService>();
         services.AddScoped<AssistantChatService>();
         return services;
     }
@@ -46,6 +48,10 @@ public static class AssistantEndpoints
 
         group.MapPost("/test", (AssistantChatService chat, IOptions<GeminiOptions> options, CancellationToken ct) =>
             Answer(options, null, async () => new { reply = await chat.TestAsync(ct) }));
+
+        // Works with or without a key: without one, it's just the nudges.
+        group.MapPost("/briefing", async (BriefingRequest request, BriefingService briefing, CancellationToken ct) =>
+            Results.Ok(await briefing.GetAsync(request.Now, request.Rewrite, ct)));
 
         return group;
     }

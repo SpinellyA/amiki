@@ -38,6 +38,7 @@ public sealed record AssistantProposal(
             Category, Account, Date is { } d ? $"{d:MMM d}" : null, $"“{Title}”"),
         ProposalKind.AddIdea => Join($"Save idea “{Title}”", Tags is { Count: > 0 } tags ? string.Join(" ", tags.Select(t => "#" + t)) : null),
         ProposalKind.CompleteTask => $"Mark “{Title}” as done",
+        ProposalKind.Remember => $"Remember: “{Title}”",
         _ => $"Add to Inbox: “{Title}”",
     };
 

@@ -21,6 +21,7 @@ public static class AssistantModule
             Icon: Icons.Material.Outlined.AutoAwesome,
             Href: "amiki",
             Order: 0,
+            Widgets: [new(typeof(AmikiBriefingWidget), 12)],
             Section: NavSection.Assistant));
         return services;
     }
