@@ -441,6 +441,52 @@ button.sync-status {
     flex-shrink: 0;
 }
 
+/* Smart Inbox: Amiki's guess under a note. */
+.suggestion {
+    --suggestion: var(--mud-palette-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    margin-top: 0.35rem;
+    padding: 0 0.15rem 0 0.55rem;
+    min-height: 1.9rem;
+    border: 1px solid color-mix(in srgb, var(--suggestion) 40%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--suggestion) 9%, transparent);
+    font-size: 0.8rem;
+}
+
+.suggestion.idea { --suggestion: var(--mud-palette-warning); }
+.suggestion.expense { --suggestion: var(--mud-palette-error); }
+.suggestion.income { --suggestion: var(--mud-palette-success); }
+
+.suggestion.unsure, .suggestion.thinking {
+    --suggestion: var(--mud-palette-text-secondary);
+    padding-right: 0.6rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+.suggestion.thinking { animation: suggestion-pulse 1.2s ease-in-out infinite; }
+
+@keyframes suggestion-pulse { 50% { opacity: 0.5; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .suggestion.thinking { animation: none; }
+}
+
+.suggestion-icon { color: var(--suggestion); flex-shrink: 0; }
+
+.suggestion-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.suggestion-hint { display: inline-flex; align-items: center; gap: 0.25rem; margin-left: 0.5rem; }
+.suggestion-hint .mud-icon-root { font-size: 0.95rem; color: var(--mud-palette-primary); }
+
 .count-pill {
     min-width: 1.35rem;
     padding: 0 0.4rem;

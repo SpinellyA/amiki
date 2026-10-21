@@ -1,3 +1,4 @@
+using Amiki.Api.Assistant;
 using Amiki.Api.Data;
 using Amiki.Api.Endpoints;
 using Amiki.Api.Security;
@@ -14,6 +15,7 @@ builder.Services.AddDbContext<AmikiDb>(options => options.UseNpgsql(connectionSt
 builder.Services.ConfigureHttpJsonOptions(options => AmikiJson.Configure(options.SerializerOptions));
 builder.Services.AddProblemDetails();
 var auth = builder.AddOwnerAuth();
+builder.Services.AddAssistant(builder.Configuration);
 
 var app = builder.Build();
 
@@ -86,6 +88,7 @@ api.MapEntity("ideas", db => db.Ideas);
 api.MapEntity("plans", db => db.Plans, Plan.CheckReplace);
 api.MapEntity("weekly-notes", db => db.WeeklyNotes);
 api.MapEntity("diary", db => db.Diary);
+api.MapAssistant();
 
 // Money: every change is audited, and account and category names must be real ones.
 api.MapEntity("categories", db => db.Categories,

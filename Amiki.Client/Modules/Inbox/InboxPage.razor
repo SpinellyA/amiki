@@ -1,6 +1,7 @@
 @page "/inbox"
 @implements IDisposable
 @inject InboxStore Store
+@inject InboxSuggestions Suggestions
 
 <PageTitle>Inbox · Amiki</PageTitle>
 
@@ -16,7 +17,15 @@
 <CaptureField AutoFocus="true" />
 <div class="quick-hint">
     <span>Make it a task and <code>#project</code> <code>!high</code> <code>@@fri</code> carry over.</span>
+    @if (Suggestions.Enabled && Store.All.Count > 0)
+    {
+        <span class="suggestion-hint"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Small" /> Suggestions by Gemini: tap ✓ to accept.</span>
+    }
 </div>
+@if (Suggestions.Problem is { } problem)
+{
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@problem</MudAlert>
+}
 
 @if (Store.All.Count == 0)
 {
@@ -32,14 +41,32 @@
         <MudPaper Outlined="true" Class="task-list">
             @foreach (var item in day)
             {
-                <InboxRow @key="item.Id" Item="item" />
+                <InboxRow @key="item.Id" Item="item" Suggestion="Suggestions.For(item)" Thinking="Suggestions.Busy" />
             }
         </MudPaper>
     </div>
 }
 
 @code {
-    protected override void OnInitialized() => Store.Changed += OnChanged;
-    public void Dispose() => Store.Changed -= OnChanged;
-    private void OnChanged() => InvokeAsync(StateHasChanged);
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Suggestions.Changed += OnSuggestionsChanged;
+        _ = Suggestions.RefreshAsync(Store.All);
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Suggestions.Changed -= OnSuggestionsChanged;
+    }
+
+    // New notes (captured here or synced from the phone) get a suggestion too.
+    private void OnChanged()
+    {
+        _ = Suggestions.RefreshAsync(Store.All);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSuggestionsChanged() => InvokeAsync(StateHasChanged);
 }

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Amiki.Core\Amiki.Core.csproj" />
     <ProjectReference Include="..\Amiki.Client\Amiki.Client.csproj" />
+    <ProjectReference Include="..\Amiki.Api\Amiki.Api.csproj" />
   </ItemGroup>
 
 </Project>

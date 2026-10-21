@@ -1,0 +1,51 @@
+@*
+    Amiki's guess for one Inbox note, e.g. "✨ Spent ₱500 · Transport · Cash", with ✓ to accept it
+    as is and ✎ to adjust it first. "Not sure" guesses show nothing to accept.
+*@
+@inject CategoryStore Categories
+
+<div class="@($"suggestion {Kind}")" title="@Suggestion.Reason">
+    <MudIcon Icon="@Icon" Size="Size.Small" Class="suggestion-icon" />
+    <span class="suggestion-text">@Summary</span>
+    @if (Suggestion.Kind != TriageKind.Unsure)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="suggestion-accept"
+                       aria-label="@($"Accept: {Summary}")" OnClick="OnAccept" />
+        @if (Suggestion.Kind != TriageKind.Idea)
+        {
+            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
+                           aria-label="Adjust before saving" OnClick="OnAdjust" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TriageSuggestion Suggestion { get; set; } = default!;
+    [Parameter] public EventCallback OnAccept { get; set; }
+    [Parameter] public EventCallback OnAdjust { get; set; }
+
+    private string Kind => Suggestion.Kind.ToString().ToLowerInvariant();
+
+    private string Icon => Suggestion.Kind switch
+    {
+        TriageKind.Task => Icons.Material.Outlined.TaskAlt,
+        TriageKind.Idea => Icons.Material.Outlined.Lightbulb,
+        TriageKind.Expense => Categories.IconOf(Suggestion.Category ?? "", TxKind.Expense),
+        TriageKind.Income => Categories.IconOf(Suggestion.Category ?? "", TxKind.Income),
+        _ => Icons.Material.Outlined.HelpOutline,
+    };
+
+    private string Summary => Suggestion.Kind switch
+    {
+        TriageKind.Task => Join("Task", Suggestion.Title,
+            Suggestion.Due is { } due ? $"due {TaskFormat.Due(due)}" : null,
+            Suggestion.Project is { } p ? $"#{p}" : null,
+            Suggestion.Priority != Priority.None ? $"{Suggestion.Priority} priority" : null),
+        TriageKind.Idea => Join("Idea", Suggestion.Title, Suggestion.Project is { } p ? $"#{p}" : null),
+        TriageKind.Expense => Join($"Spent {Money.Format(Suggestion.Amount ?? 0)}", Suggestion.Category, Suggestion.Account),
+        TriageKind.Income => Join($"Received {Money.Format(Suggestion.Amount ?? 0)}", Suggestion.Category, Suggestion.Account),
+        _ => "Not sure what this is. Sort it yourself.",
+    };
+
+    private static string Join(params string?[] parts) => string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+}

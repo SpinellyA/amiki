@@ -4,10 +4,11 @@ namespace Amiki.Modules.Inbox;
 
 public static class InboxModule
 {
-    /// <summary>Depends on the Tasks and Ideas modules being registered too.</summary>
+    /// <summary>Depends on the Tasks, Ideas and Money modules being registered too.</summary>
     public static IServiceCollection AddInboxModule(this IServiceCollection services)
     {
         services.AddSingleton<InboxStore>();
+        services.AddSingleton<InboxSuggestions>();
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<InboxStore>());
         services.AddScoped<InboxTriage>();
         services.AddSingleton(new ModuleInfo(

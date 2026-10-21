@@ -4,6 +4,16 @@
     <div class="inbox-main">
         <div class="inbox-text">@Item.Text</div>
         <div class="task-meta"><span>@When.Short(Item.CapturedAt)</span></div>
+        @* "Not sure" shows nothing: the buttons on the right already cover sorting it yourself. *@
+        @if (Suggestion is { Kind: not TriageKind.Unsure } suggestion)
+        {
+            <SuggestionChip Suggestion="suggestion" OnAccept="() => Triage.Accept(Item, suggestion)"
+                            OnAdjust="() => Triage.AdjustAsync(Item, suggestion)" />
+        }
+        else if (Thinking)
+        {
+            <div class="suggestion thinking"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Size="Size.Small" /> Thinking…</div>
+        }
     </div>
     <div class="inbox-actions">
         <MudTooltip Text="Make it a task">
@@ -23,4 +33,10 @@
 
 @code {
     [Parameter, EditorRequired] public InboxItem Item { get; set; } = default!;
+
+    /// <summary>Amiki's guess for this note, if there is one.</summary>
+    [Parameter] public TriageSuggestion? Suggestion { get; set; }
+
+    /// <summary>A guess is on its way.</summary>
+    [Parameter] public bool Thinking { get; set; }
 }
