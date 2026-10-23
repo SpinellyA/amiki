@@ -1,4 +1,5 @@
 using Amiki.Api.Data;
+using Amiki.Api.Users;
 using Amiki.Core;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ public static class EntityEndpoints
     /// <param name="checkAsync">Rules that need the database, e.g. "that account exists" (400 when broken).</param>
     /// <param name="describe">When set, every real change is written to the audit log in the same save.</param>
     /// <param name="checkDelete">Rules for removing a stored item, e.g. "nothing still uses it" (409 when broken).</param>
+    /// <param name="fromMember">Adjusts a save from someone other than the owner (stored item, incoming one).</param>
+    /// <param name="privateFromOwner">Never shown when the owner is viewing someone's Amiki (the diary).</param>
     public static RouteGroupBuilder MapEntity<T>(
         this RouteGroupBuilder api,
         string path,
@@ -23,21 +26,26 @@ public static class EntityEndpoints
         Func<T, T, string?>? checkReplace = null,
         Func<AmikiDb, T, CancellationToken, Task<string?>>? checkAsync = null,
         Func<T, string>? describe = null,
-        Func<AmikiDb, T, CancellationToken, Task<string?>>? checkDelete = null)
+        Func<AmikiDb, T, CancellationToken, Task<string?>>? checkDelete = null,
+        Action<T?, T>? fromMember = null,
+        bool privateFromOwner = false)
         where T : class, IEntity
     {
         var group = api.MapGroup($"/{path}").WithTags(path);
 
-        group.MapGet("/", async (AmikiDb db, CancellationToken ct) =>
-            Results.Ok(await set(db).AsNoTracking().ToListAsync(ct)));
+        group.MapGet("/", async (AmikiDb db, UserContext user, CancellationToken ct) =>
+            privateFromOwner && user.IsViewingSomeoneElse
+                ? Results.Ok(Array.Empty<T>())
+                : Results.Ok(await set(db).AsNoTracking().ToListAsync(ct)));
 
-        group.MapPut("/{id:guid}", async (Guid id, T body, AmikiDb db, CancellationToken ct) =>
+        group.MapPut("/{id:guid}", async (Guid id, T body, AmikiDb db, UserContext user, CancellationToken ct) =>
         {
             if (body.Id != id) return Results.Problem("The id in the URL and the body don't match.", statusCode: 400);
             if (body.Validate() is { } problem) return Results.Problem(problem, statusCode: 400);
             if (checkAsync is not null && await checkAsync(db, body, ct) is { } dbProblem) return Results.Problem(dbProblem, statusCode: 400);
 
-            var stored = await set(db).FindAsync([id], ct);
+            var stored = await set(db).FirstOrDefaultAsync(e => e.Id == id, ct);
+            if (!user.IsOwner) fromMember?.Invoke(stored, body);
             var before = stored is null || describe is null ? null : Audit.Serialize(stored);
             if (stored is null)
             {
@@ -63,7 +71,7 @@ public static class EntityEndpoints
 
         group.MapDelete("/{id:guid}", async (Guid id, AmikiDb db, CancellationToken ct) =>
         {
-            if (await set(db).FindAsync([id], ct) is { } stored)
+            if (await set(db).FirstOrDefaultAsync(e => e.Id == id, ct) is { } stored)
             {
                 if (checkDelete is not null && await checkDelete(db, stored, ct) is { } conflict)
                     return Results.Problem(conflict, statusCode: 409);

@@ -1,0 +1,119 @@
+@page "/people"
+@using Amiki.Modules.People
+@inject PeopleClient People
+@inject Session Session
+@inject Viewing Viewing
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>People</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">People</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Who can sign in to this Amiki. Everyone gets their own data; you can look at theirs, except their diary.</MudText>
+    </div>
+</div>
+
+@if (Session.Current is not { IsOwner: true } || Viewing.IsViewing)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Large" />
+        <MudText Typo="Typo.body1">Only the owner manages people.</MudText>
+    </div>
+}
+else
+{
+    <div class="people">
+        <MudPaper Outlined="true" Class="widget">
+            <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.PersonAdd" Size="Size.Small" /><span>Add someone</span></div>
+            <EditForm Model="this" OnSubmit="AddAsync" class="settings-body people-add">
+                <MudTextField T="string" @bind-Value="_email" Label="Their Google address" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              InputType="InputType.Email" Placeholder="name@gmail.com" Class="people-add-email" />
+                <MudTextField T="string" @bind-Value="_key" Label="Gemini key (optional)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              InputType="InputType.Password" HelperText="They can add their own later instead." />
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy || string.IsNullOrWhiteSpace(_email)">Add</MudButton>
+            </EditForm>
+        </MudPaper>
+
+        <MudPaper Outlined="true" Class="widget">
+            <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Group" Size="Size.Small" /><span>Can sign in</span></div>
+            @if (_people is null)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else
+            {
+                @foreach (var person in _people)
+                {
+                    <PersonRow @key="person.Id" Person="person" OnView="Viewing.Start" OnSetUp="SetUpAsync" OnEnabled="ToggleAsync" OnRemove="RemoveAsync" />
+                }
+                @if (_people.Count == 1)
+                {
+                    <MudText Typo="Typo.body2" Class="muted settings-body">Just you so far. Add someone above and they can sign in with that Google account.</MudText>
+                }
+            }
+        </MudPaper>
+    </div>
+}
+
+@code {
+    private List<Person>? _people;
+    private string _email = "";
+    private string? _key;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        if (Session.Current is not { IsOwner: true } || Viewing.IsViewing) return;
+        try { _people = await People.ListAsync(); }
+        catch (HttpRequestException) { Snackbar.Add("Couldn't load people.", Severity.Error); }
+    }
+
+    private async Task AddAsync()
+    {
+        _busy = true;
+        var email = _email.Trim();
+        var problem = await People.AddAsync(new AddPersonRequest(email, string.IsNullOrWhiteSpace(_key) ? null : _key));
+        _busy = false;
+        if (problem is not null)
+        {
+            Snackbar.Add(problem, Severity.Error);
+            return;
+        }
+        (_email, _key) = ("", null);
+        Snackbar.Add($"Added {email}. They can sign in now.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task SetUpAsync(Person person)
+    {
+        var dialog = await Dialogs.ShowAsync<PersonAmikiDialog>($"{person.Label}'s Amiki",
+            new DialogParameters<PersonAmikiDialog> { { d => d.Person, person } },
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Saved.", Severity.Success);
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ToggleAsync(Person person)
+    {
+        if (await People.SetEnabledAsync(person.Id, !person.Enabled) is { } problem) Snackbar.Add(problem, Severity.Error);
+        await ReloadAsync();
+    }
+
+    private async Task RemoveAsync(Person person)
+    {
+        var sure = await Dialogs.ShowMessageBoxAsync($"Remove {person.Label}?",
+            "They won't be able to sign in, and everything of theirs is deleted for good: tasks, money, ideas, diary, all of it.",
+            yesText: "Remove and delete", cancelText: "Cancel");
+        if (sure != true) return;
+        if (await People.RemoveAsync(person.Id) is { } problem) Snackbar.Add(problem, Severity.Error);
+        else Snackbar.Add($"Removed {person.Label}.", Severity.Success);
+        await ReloadAsync();
+    }
+}

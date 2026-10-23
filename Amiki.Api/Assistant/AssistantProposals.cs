@@ -18,7 +18,7 @@ public sealed class AssistantProposals(AmikiDb db)
     public const string Prefix = "propose_";
 
     /// <summary>The suggestion tools allowed by your settings: only for areas she can see, and only if suggesting is on.</summary>
-    public IReadOnlyList<ToolDefinition> For(AssistantSettings settings)
+    public IReadOnlyList<ToolDefinition> For(AssistantSettings settings, bool canRemember = true)
     {
         if (!settings.CanPropose) return [];
         var tools = new List<ToolDefinition>();
@@ -26,7 +26,7 @@ public sealed class AssistantProposals(AmikiDb db)
         if (settings.SeeMoney) tools.Add(LogMoney);
         if (settings.SeeIdeas) tools.Add(AddIdea);
         if (settings.SeeInbox) tools.Add(InboxNote);
-        tools.Add(Remember);
+        if (canRemember) tools.Add(Remember);
         return tools;
     }
 

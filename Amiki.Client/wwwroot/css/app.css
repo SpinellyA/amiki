@@ -2279,3 +2279,74 @@ html, body {
 .loading-progress-text:after {
     content: var(--blazor-load-percentage-text, "Loading");
 }
+
+/* Viewing someone else's Amiki: a teal ribbon (never the amber of "offline") so it can't be mistaken for yours. */
+:root { --viewing: #2BB3A3; }
+.viewing-ribbon {
+    position: sticky;
+    top: var(--mud-appbar-height, 48px);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    background: color-mix(in srgb, var(--viewing) 16%, var(--mud-palette-background));
+    border-bottom: 1px solid color-mix(in srgb, var(--viewing) 45%, transparent);
+    font-size: 0.85rem;
+}
+.viewing-ribbon .mud-icon-root { color: var(--viewing); flex-shrink: 0; }
+.viewing-ribbon > span { flex: 1; }
+.viewing-ribbon .viewing-back { background: var(--viewing); color: #06201D; flex-shrink: 0; }
+.brand-whose {
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--viewing);
+    border: 1px solid color-mix(in srgb, var(--viewing) 50%, transparent);
+}
+
+.people { display: grid; gap: 1rem; max-width: 52rem; }
+.people-add { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; }
+.people-add .mud-input-control { flex: 1 1 14rem; margin-top: 0; }
+.people-add .mud-button-root { margin-top: 0.35rem; }
+.person-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+.person-off { opacity: 0.6; }
+.person-avatar {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--mud-palette-primary) 18%, transparent);
+    color: var(--mud-palette-primary);
+}
+.person-main { flex: 1; min-width: 0; }
+.person-name { font-weight: 500; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.person-meta { font-size: 0.8rem; overflow-wrap: anywhere; }
+.person-tag {
+    font-size: 0.7rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--mud-palette-lines-default);
+    color: var(--mud-palette-text-secondary);
+}
+.person-actions { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+.key-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; }
+.key-row .mud-input-control { flex: 1 1 16rem; margin-top: 0; }
+.key-row .mud-button-root { margin-top: 0.35rem; }
+
+@media (max-width: 600px) {
+    .viewing-ribbon { flex-wrap: wrap; }
+    .person-row { flex-wrap: wrap; }
+    .person-actions { width: 100%; justify-content: flex-end; }
+}

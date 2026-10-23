@@ -17,8 +17,10 @@ namespace Amiki.Data;
 ///
 /// Waiting changes are also kept in the browser's localStorage, so closing the tab (or the
 /// phone killing it) while offline doesn't lose them: they're sent next time Amiki opens.
+///
+/// While the owner is viewing someone else's Amiki, nothing is sent or saved: it's look-only.
 /// </summary>
-public sealed class SyncQueue(Api api, IJSRuntime js)
+public sealed class SyncQueue(Api api, IJSRuntime js, Viewing viewing)
 {
     private const string StorageKey = "amiki.pending";
 
@@ -53,6 +55,7 @@ public sealed class SyncQueue(Api api, IJSRuntime js)
 
     public void Put<T>(string path, Guid id, T item) where T : class
     {
+        if (RefuseWhileViewing()) return;
         var url = $"api/{path}/{id}";
         var json = JsonSerializer.Serialize(item, Api.Json);
 
@@ -71,6 +74,7 @@ public sealed class SyncQueue(Api api, IJSRuntime js)
 
     public void Delete(string path, Guid id)
     {
+        if (RefuseWhileViewing()) return;
         var url = $"api/{path}/{id}";
         // An unsent save of something now deleted doesn't need to go out.
         foreach (var op in _pending.Where(op => !op.Sending && op.Url == url).ToList()) _pending.Remove(op);
@@ -80,6 +84,7 @@ public sealed class SyncQueue(Api api, IJSRuntime js)
     /// <summary>Picks up changes left over from a previous visit and starts sending them. Returns how many.</summary>
     public int RestoreSaved()
     {
+        if (viewing.IsViewing) return 0; // those are your changes; they wait until you're back in your own Amiki
         try
         {
             var json = ((IJSInProcessRuntime)js).Invoke<string?>("localStorage.getItem", StorageKey);
@@ -93,6 +98,13 @@ public sealed class SyncQueue(Api api, IJSRuntime js)
         }
         if (_pending.Count > 0) Start();
         return _pending.Count;
+    }
+
+    private bool RefuseWhileViewing()
+    {
+        if (!viewing.IsViewing) return false;
+        Rejected?.Invoke($"You're looking at {viewing.Label}'s Amiki. Changes aren't saved.");
+        return true;
     }
 
     private void Enqueue(Op op)

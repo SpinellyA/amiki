@@ -5,6 +5,9 @@
 @inject DataSync Sync
 @inject Session Session
 @inject NavigationManager Nav
+@inject Viewing Viewing
+@inject PeopleClient People
+@inject IDialogService Dialogs
 
 <MudThemeProvider Theme="_theme" @bind-IsDarkMode="_dark" />
 <MudPopoverProvider />
@@ -33,6 +36,10 @@ else
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                            aria-label="Toggle navigation" OnClick="() => _drawerOpen = !_drawerOpen" />
             <span class="brand">amiki</span>
+            @if (Viewing.IsViewing)
+            {
+                <span class="brand-whose">@Viewing.Label</span>
+            }
             <MudSpacer />
             <span class="appbar-date">@DateTime.Today.ToString("dddd, MMMM d")</span>
             @if (_state == LoadState.Ready)
@@ -66,10 +73,23 @@ else
                         <MudNavLink Href="@module.Href" Icon="@module.Icon">@module.Name</MudNavLink>
                     }
                 }
+                @if (Session.Current is { IsOwner: true } && !Viewing.IsViewing)
+                {
+                    <div class="nav-section">Owner</div>
+                    <MudNavLink Href="people" Icon="@Icons.Material.Outlined.Group">People</MudNavLink>
+                }
             </MudNavMenu>
         </MudDrawer>
 
         <MudMainContent>
+            @if (Viewing.IsViewing)
+            {
+                <div class="viewing-ribbon" role="status">
+                    <MudIcon Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small" />
+                    <span>You're looking at <b>@Viewing.Label's</b> Amiki. Look only: nothing you do here is saved, and their diary stays private.</span>
+                    <MudButton Variant="Variant.Filled" Size="Size.Small" DropShadow="false" Class="viewing-back" OnClick="Viewing.Stop">Back to mine</MudButton>
+                </div>
+            }
             <MudContainer MaxWidth="MaxWidth.Large" Class="page">
                 @switch (_state)
                 {
@@ -116,7 +136,7 @@ else
 
     // Set by the server when a Google sign-in is turned away (?auth=denied) or doesn't finish.
     private string? AuthMessage =>
-        Nav.Uri.Contains("auth=denied") ? "That Google account can't use this Amiki. Sign in with the owner's account."
+        Nav.Uri.Contains("auth=denied") ? "That Google account hasn't been added to this Amiki. Ask the owner to add it, then try again."
         : Nav.Uri.Contains("auth=failed") ? "Sign-in didn't finish. Please try again."
         : null;
 
@@ -144,6 +164,7 @@ else
             }
             await Sync.EnsureLoadedAsync();
             _state = LoadState.Ready;
+            if (Session.Current is { NoticePending: true }) _ = ShowNoticeAsync();
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -157,6 +178,17 @@ else
             Sync.Reset();
         }
     }
+    // Once, for someone the owner added: be upfront about what the owner can see.
+    private async Task ShowNoticeAsync()
+    {
+        await Dialogs.ShowMessageBoxAsync("Welcome to Amiki",
+            "The owner of this Amiki added you. Your tasks, money, ideas and the rest are yours, kept apart from everyone else's. " +
+            "The owner can look at them (but can't change them) and sets up how Amiki talks to you. " +
+            "Your diary is private: nobody else can read it, not even the owner.",
+            yesText: "Got it");
+        if (await People.NoticeSeenAsync() is null) Session.NoticeSeen();
+    }
+
     private bool _drawerOpen = true;
     private bool _dark = true;
 

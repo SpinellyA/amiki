@@ -8,8 +8,9 @@ namespace Amiki.Data;
 /// <summary>
 /// Reads from the Amiki API (writes go through <see cref="SyncQueue"/>), and keeps the on-device
 /// copy of your data in localStorage so the installed app can open instantly and offline.
+/// While the owner is viewing someone else's Amiki, that copy is neither read nor written: it's yours.
 /// </summary>
-public sealed class Api(HttpClient http, IJSRuntime js)
+public sealed class Api(HttpClient http, IJSRuntime js, Viewing viewing)
 {
     public static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -33,7 +34,7 @@ public sealed class Api(HttpClient http, IJSRuntime js)
     }
 
     /// <summary>When the saved copy was last updated from the server; null if there isn't one.</summary>
-    public DateTime? CachedAt =>
+    public DateTime? CachedAt => viewing.IsViewing ? null :
         DateTime.TryParse(Read(CachedAtKey), System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var at) ? at : null;
 
@@ -61,6 +62,7 @@ public sealed class Api(HttpClient http, IJSRuntime js)
 
     private void Write(string key, string value)
     {
+        if (viewing.IsViewing) return;
         // Full or blocked storage just means no offline copy this time; the app still works online.
         try { Storage.InvokeVoid("localStorage.setItem", key, value); }
         catch { }

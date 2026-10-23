@@ -1,0 +1,67 @@
+@* Your own Gemini API key. Stored encrypted on the server and never shown again; pasting a new one replaces it. *@
+@inject PeopleClient People
+@inject Session Session
+@inject ISnackbar Snackbar
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Key" Size="Size.Small" /><span>Gemini API key</span></div>
+    <div class="settings-body">
+        @if (_info is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="mb-3">@Status</MudText>
+            <div class="key-row">
+                <MudTextField T="string" @bind-Value="_key" Label="@(_info.HasKey ? "Replace with a new key" : "Your key")" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" InputType="InputType.Password" Placeholder="Paste a key from aistudio.google.com" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving || string.IsNullOrWhiteSpace(_key)" OnClick="() => SaveAsync(_key)">Save key</MudButton>
+            </div>
+            @if (_info.HasKey)
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error" Class="mt-1" Disabled="_saving" OnClick="() => SaveAsync(null)">Remove key</MudButton>
+            }
+            <MudText Typo="Typo.caption" Class="muted d-block mt-2">Free keys come from Google AI Studio. Your key is only used for your own Amiki.</MudText>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    /// <summary>Raised after the key changes, so the page can re-check whether Amiki is on.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private MyKeyInfo? _info;
+    private string? _key;
+    private bool _saving;
+
+    private string Status => _info?.SetBy switch
+    {
+        "self" => "You added your own key.",
+        "owner" => "The owner added a key for you. You can replace it with your own.",
+        _ when Session.Current is { IsOwner: true } => "None saved here, so Amiki uses the server's key (Gemini__ApiKey), if there is one.",
+        _ => "No key yet, so Amiki can't chat or write your daily note. Add one, or ask the owner to.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _info = await People.MyKeyAsync(); }
+        catch (HttpRequestException) { _info = new MyKeyInfo(null); }
+    }
+
+    private async Task SaveAsync(string? key)
+    {
+        _saving = true;
+        var problem = await People.SetMyKeyAsync(key);
+        _saving = false;
+        if (problem is not null)
+        {
+            Snackbar.Add(problem, Severity.Error);
+            return;
+        }
+        _key = null;
+        Snackbar.Add(key is null ? "Key removed." : "Key saved.", Severity.Success);
+        _info = await People.MyKeyAsync();
+        await Changed.InvokeAsync();
+    }
+}

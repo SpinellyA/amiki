@@ -7,16 +7,32 @@ using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
 using Amiki.Modules.Review;
 using Amiki.Modules.Tasks;
+using Amiki.Api.Users;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Amiki.Api.Data;
 
-public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(options), IDataProtectionKeyContext
+/// <summary>
+/// The database. Every personal table has a hidden UserId column: reads only ever see the rows of
+/// the person the request is for (<see cref="UserContext.DataUserId"/>), and new rows are stamped
+/// with it on save. That's what keeps one person's data from another's; nothing else has to
+/// remember to filter. Keys include the user, so things with fixed ids (a day's diary page, the
+/// assistant settings) can exist once per person.
+/// </summary>
+public sealed class AmikiDb(DbContextOptions<AmikiDb> options, UserContext user) : DbContext(options), IDataProtectionKeyContext
 {
+    public const string UserIdColumn = "UserId";
+
     /// <summary>Sign-in cookie encryption keys; kept here so restarts don't sign you out.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    /// <summary>Who can sign in. Not per-person itself.</summary>
+    public DbSet<AppUser> Users => Set<AppUser>();
+
+    // Read by the query filters each time a query runs, so it always means this request's person.
+    private Guid CurrentUserId => user.DataUserId;
 
     public DbSet<InboxItem> Inbox => Set<InboxItem>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
@@ -47,6 +63,24 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.Entity<DataProtectionKey>().ToTable("data_protection_keys");
+
+        // Per person: the hidden UserId column, a key that includes it, and the filter. First, so
+        // the indexes below can use the column.
+        PerPerson<InboxItem>(model);
+        PerPerson<TaskItem>(model);
+        PerPerson<Idea>(model);
+        PerPerson<Category>(model);
+        PerPerson<Transaction>(model);
+        PerPerson<Account>(model, key: nameof(Account.Name));
+        PerPerson<Transfer>(model);
+        PerPerson<BalanceCheck>(model);
+        PerPerson<AuditEntry>(model, key: null); // its own running number is already unique
+        PerPerson<Plan>(model);
+        PerPerson<WeeklyNote>(model);
+        PerPerson<DiaryEntry>(model);
+        PerPerson<AssistantSettings>(model);
+        PerPerson<DailyBriefing>(model);
+
         model.Entity<InboxItem>().ToTable("inbox_items");
 
         model.Entity<TaskItem>(task =>
@@ -76,18 +110,13 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             category.Property(c => c.Kind).HasConversion<string>().HasMaxLength(16);
             category.Property(c => c.Name).HasMaxLength(Category.MaxNameLength);
             category.Property(c => c.Icon).HasMaxLength(40);
-            category.HasIndex(c => new { c.Kind, c.Name }).IsUnique();
-            category.HasData(StarterCategories.All);
+            category.HasIndex(UserIdColumn, nameof(Category.Kind), nameof(Category.Name)).IsUnique();
         });
 
         // Start at zero: the first balance check on each account sets its real amount (as a
         // labeled correction), instead of made-up opening balances skewing every total.
-        model.Entity<Account>(account =>
-        {
-            account.ToTable("accounts");
-            account.HasKey(a => a.Name);
-            account.HasData(new Account("Cash", 0), new Account("GCash", 0), new Account("Maribank", 0), new Account("Landbank", 0));
-        });
+        // (Each person's starter accounts and categories are made when they're added.)
+        model.Entity<Account>(account => account.ToTable("accounts"));
 
         model.Entity<Transfer>(transfer =>
         {
@@ -116,14 +145,14 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
             note.ToTable("weekly_notes");
             note.Property(n => n.WentWell).HasMaxLength(WeeklyNote.MaxLength);
             note.Property(n => n.ToChange).HasMaxLength(WeeklyNote.MaxLength);
-            note.HasIndex(n => n.WeekStart).IsUnique();
+            note.HasIndex(UserIdColumn, nameof(WeeklyNote.WeekStart)).IsUnique();
         });
 
         model.Entity<DiaryEntry>(entry =>
         {
             entry.ToTable("diary_entries");
             entry.Property(e => e.Text).HasMaxLength(DiaryEntry.MaxLength);
-            entry.HasIndex(e => e.Day).IsUnique();
+            entry.HasIndex(UserIdColumn, nameof(DiaryEntry.Day)).IsUnique();
         });
 
         model.Entity<AssistantSettings>(settings =>
@@ -137,7 +166,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
         {
             briefing.ToTable("daily_briefings");
             briefing.Property(b => b.Text).HasMaxLength(DailyBriefing.MaxLength);
-            briefing.HasIndex(b => b.Day).IsUnique();
+            briefing.HasIndex(UserIdColumn, nameof(DailyBriefing.Day)).IsUnique();
         });
 
         // A plan is saved and loaded as one unit, so its items live in a jsonb column on the
@@ -156,5 +185,46 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options) : DbContext(optio
                         items => JsonSerializer.Serialize(items, Json).GetHashCode(),
                         items => JsonSerializer.Deserialize<List<PlanItem>>(JsonSerializer.Serialize(items, Json), Json)!));
         });
+
+        model.Entity<AppUser>(u =>
+        {
+            u.ToTable("app_users");
+            u.Property(x => x.Email).HasMaxLength(320);
+            u.Property(x => x.Name).HasMaxLength(200);
+            u.Property(x => x.GeminiKeySetBy).HasMaxLength(16);
+            u.HasIndex(x => x.Email).IsUnique();
+        });
+    }
+
+    private void PerPerson<T>(ModelBuilder model, string? key = "Id") where T : class
+    {
+        var entity = model.Entity<T>();
+        entity.Property<Guid>(UserIdColumn);
+        if (key is not null) entity.HasKey(UserIdColumn, key);
+        else entity.HasIndex(UserIdColumn);
+        entity.HasQueryFilter(e => EF.Property<Guid>(e, UserIdColumn) == CurrentUserId);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampOwner();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+    {
+        StampOwner();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+    }
+
+    // New rows belong to the request's person. Viewing someone else is read-only, so nothing new is
+    // written for them (the middleware refuses those requests before they get here).
+    private void StampOwner()
+    {
+        foreach (var entry in ChangeTracker.Entries().Where(e => e.State == EntityState.Added && e.Metadata.FindProperty(UserIdColumn) is not null))
+        {
+            var column = entry.Property(UserIdColumn);
+            if ((Guid)column.CurrentValue! == Guid.Empty) column.CurrentValue = CurrentUserId;
+        }
     }
 }

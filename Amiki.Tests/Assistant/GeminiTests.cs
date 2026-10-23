@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Amiki.Api.Assistant;
+using Amiki.Api.Users;
 using Amiki.Modules.Assistant;
 using Amiki.Modules.Tasks;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,7 @@ public class GeminiTests
     }
 
     private static GeminiModel Model(FakeGemini fake, string? key = "test-key") =>
-        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = key, Model = "gemini-test", LightModel = "gemini-light" }));
+        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = key, Model = "gemini-test", LightModel = "gemini-light" }), new UserContext());
 
     private static readonly JsonObject Schema = new() { ["type"] = "object" };
 

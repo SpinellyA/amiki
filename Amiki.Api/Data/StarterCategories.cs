@@ -3,14 +3,15 @@ using Amiki.Modules.Finance;
 namespace Amiki.Api.Data;
 
 /// <summary>
-/// The categories a new database starts with (the list the app used to have built in). Ids and
-/// dates are fixed so the migration that adds them never changes.
+/// The categories each person starts with (the list the app used to have built in). Ids are
+/// fixed, which is fine because a category's key includes its owner.
 /// </summary>
 public static class StarterCategories
 {
     private static readonly DateTime Added = new(2026, 10, 6);
 
-    public static readonly Category[] All =
+    /// <summary>A fresh set each time, so they can be added for more than one person.</summary>
+    public static Category[] Create() =>
     [
         Spending("1f0c8a01-0000-4000-8000-000000000001", "Food", "Restaurant"),
         Spending("1f0c8a01-0000-4000-8000-000000000002", "Transport", "DirectionsCar"),

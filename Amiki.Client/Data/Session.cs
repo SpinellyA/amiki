@@ -49,6 +49,14 @@ public sealed class Session(Api api, NavigationManager nav)
         nav.NavigateTo("", forceLoad: true);
     }
 
+    /// <summary>They've read the "what the owner can see" notice; don't show it again on this device.</summary>
+    public void NoticeSeen()
+    {
+        if (Current is null) return;
+        Current = Current with { NoticePending = false };
+        api.WriteCache(CacheKey, JsonSerializer.Serialize(Current, Api.Json));
+    }
+
     private async Task<SessionInfo?> AskServerAsync()
     {
         using var response = await api.Http.GetAsync("auth/me");

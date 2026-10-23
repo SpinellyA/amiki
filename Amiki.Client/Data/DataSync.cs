@@ -39,6 +39,8 @@ public sealed class DataSync : IAsyncDisposable
         _api = api;
         _js = js;
         foreach (var store in _stores) store.Changed += ScheduleSave;
+        // A change the server (or look-only viewing) refused is already on screen: put back what's really saved.
+        _queue.Rejected += _ => _ = RefreshQuietlyAsync();
     }
 
     /// <summary>Set while the screen shows the device's saved copy because the server couldn't be reached yet.</summary>

@@ -1,0 +1,56 @@
+@* One person on the People page: who they are, whether their Amiki is on, and what you can do. *@
+@using Amiki.Modules.People
+
+<div class="person-row @(Person.Enabled ? "" : "person-off")">
+    <div class="person-avatar" aria-hidden="true">@Initial</div>
+    <div class="person-main">
+        <div class="person-name">
+            @Person.Label
+            @if (Person.IsOwner)
+            {
+                <span class="person-tag">you</span>
+            }
+            @if (!Person.Enabled)
+            {
+                <span class="person-tag">can't sign in</span>
+            }
+        </div>
+        <div class="muted person-meta">@Meta</div>
+    </div>
+    @if (!Person.IsOwner)
+    {
+        <div class="person-actions">
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Visibility" OnClick="() => OnView.InvokeAsync(Person)">View</MudButton>
+            <MudIconButton Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-label="@($"Set up {Person.Label}'s Amiki")"
+                           title="Key and personality" OnClick="() => OnSetUp.InvokeAsync(Person)" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                     aria-label="@($"More for {Person.Label}")">
+                <MudMenuItem Icon="@(Person.Enabled ? Icons.Material.Outlined.Block : Icons.Material.Outlined.CheckCircle)"
+                             OnClick="() => OnEnabled.InvokeAsync(Person)">@(Person.Enabled ? "Stop their sign-in" : "Let them sign in again")</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.DeleteForever" IconColor="Color.Error" OnClick="() => OnRemove.InvokeAsync(Person)">Remove them and their data</MudMenuItem>
+            </MudMenu>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Person Person { get; set; } = default!;
+    [Parameter] public EventCallback<Person> OnView { get; set; }
+    [Parameter] public EventCallback<Person> OnSetUp { get; set; }
+    [Parameter] public EventCallback<Person> OnEnabled { get; set; }
+    [Parameter] public EventCallback<Person> OnRemove { get; set; }
+
+    private string Initial => Person.Label[..1].ToUpperInvariant();
+
+    private string Meta
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Person.Name.Length > 0) parts.Add(Person.Email);
+            parts.Add(Person.LastSignInAt is { } at ? $"last signed in {When.Short(at)}" : Person.IsOwner ? "owner" : "hasn't signed in yet");
+            if (!Person.IsOwner) parts.Add(Person.HasKey ? "Amiki on" : "no Gemini key");
+            return string.Join(" · ", parts);
+        }
+    }
+}

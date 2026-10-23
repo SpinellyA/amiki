@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Amiki.Api.Data;
+using Amiki.Api.Users;
 using Amiki.Modules.Assistant;
 using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
@@ -13,7 +15,7 @@ namespace Amiki.Api.Assistant;
 /// written by the model once a day and saved. Only areas she's allowed to see go in; never the
 /// diary. If the model is off or busy, the nudges still show.
 /// </summary>
-public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.Extensions.Options.IOptions<GeminiOptions> options)
+public sealed class BriefingService(AmikiDb db, ILanguageModel model, UserContext user)
 {
     // One note written at a time: when the phone and PC open the dashboard together, the second
     // waits and gets the first one's note instead of asking the model again.
@@ -21,7 +23,7 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
 
     // After hitting the free tier's limit, don't ask again on every dashboard load for a while.
     private static readonly TimeSpan PauseAfterLimit = TimeSpan.FromMinutes(10);
-    private static DateTime _quietUntil = DateTime.MinValue;
+    private static readonly ConcurrentDictionary<Guid, DateTime> QuietUntil = new(); // per person: each has their own key
 
     public async Task<Briefing> GetAsync(DateTime now, bool rewrite, CancellationToken ct)
     {
@@ -29,11 +31,13 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
         var input = await GatherAsync(settings, now.Date, ct);
         var nudges = NudgeRules.From(input);
 
-        if (!options.Value.Enabled) return new Briefing(null, null, nudges);
+        if (!model.IsEnabled && !user.IsViewingSomeoneElse) return new Briefing(null, null, nudges);
 
         var saved = await SavedAsync(now, ct);
         if (saved is not null && !rewrite) return new Briefing(saved.Text, saved.WrittenAt, nudges);
-        if (DateTime.UtcNow < _quietUntil)
+        // Viewing someone else's Amiki is look-only: their saved note if there is one, never a new one.
+        if (user.IsViewingSomeoneElse) return new Briefing(saved?.Text, saved?.WrittenAt, nudges);
+        if (DateTime.UtcNow < QuietUntil.GetValueOrDefault(user.DataUserId))
             return new Briefing(saved?.Text, saved?.WrittenAt, nudges, "Gemini's free-tier limit was reached; she'll write it in a few minutes.");
 
         await Writing.WaitAsync(ct);
@@ -47,7 +51,7 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
         }
         catch (LanguageModelException ex)
         {
-            if (ex.RateLimited) _quietUntil = DateTime.UtcNow + PauseAfterLimit;
+            if (ex.RateLimited) QuietUntil[user.DataUserId] = DateTime.UtcNow + PauseAfterLimit;
             return new Briefing(saved?.Text, saved?.WrittenAt, nudges, ex.Message);
         }
         finally
@@ -62,7 +66,7 @@ public sealed class BriefingService(AmikiDb db, ILanguageModel model, Microsoft.
     // Replaces today's note; if another device saved one at the same moment, the newest wins.
     private async Task SaveAsync(DailyBriefing briefing, CancellationToken ct)
     {
-        var existing = await db.DailyBriefings.FindAsync([briefing.Id], ct);
+        var existing = await db.DailyBriefings.FirstOrDefaultAsync(b => b.Id == briefing.Id, ct);
         if (existing is null) db.DailyBriefings.Add(briefing);
         else db.Entry(existing).CurrentValues.SetValues(briefing);
         try { await db.SaveChangesAsync(ct); }

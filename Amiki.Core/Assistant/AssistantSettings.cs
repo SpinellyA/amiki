@@ -41,6 +41,16 @@ public sealed class AssistantSettings : IEntity
 
     public AssistantSettings Clone() => (AssistantSettings)MemberwiseClone();
 
+    /// <summary>
+    /// For people the owner added: what she knows about them and her personality are the owner's
+    /// to set, so a save from them keeps whatever is stored (the rest of the settings are theirs).
+    /// </summary>
+    public static void KeepOwnersWords(AssistantSettings? stored, AssistantSettings incoming)
+    {
+        incoming.AboutMe = stored?.AboutMe ?? "";
+        incoming.Personality = stored?.Personality ?? "";
+    }
+
     public string? Validate() =>
         Id != SingleId ? "There's only one set of assistant settings."
         : AboutMe.Length > MaxAboutMe ? $"\"About me\" is too long ({MaxAboutMe} characters max)."

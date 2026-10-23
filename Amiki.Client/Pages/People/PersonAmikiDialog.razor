@@ -1,0 +1,79 @@
+@* The owner sets up someone's Amiki: their Gemini key, what she knows about them, how she talks. They can't change the last two. *@
+@using Amiki.Modules.People
+@inject PeopleClient People
+
+<MudDialog>
+    <DialogContent>
+        @if (_words is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Gemini API key</MudText>
+            <MudText Typo="Typo.body2" Class="muted mb-2">@KeyLine</MudText>
+            <MudTextField T="string" @bind-Value="_key" Label="@(Person.HasKey ? "Replace their key" : "Their key")" Variant="Variant.Outlined"
+                          InputType="InputType.Password" Margin="Margin.Dense" Placeholder="Paste a key from aistudio.google.com" />
+            @if (Person.HasKey)
+            {
+                <MudCheckBox T="bool" @bind-Value="_removeKey" Color="Color.Error" Label="Remove their key (turns their Amiki off)" Dense="true" />
+            }
+
+            <MudText Typo="Typo.subtitle2" Class="mt-5 mb-1">What she knows about them</MudText>
+            <MudTextField T="string" @bind-Value="_aboutMe" Variant="Variant.Outlined" Lines="4" AutoGrow="true"
+                          MaxLength="AssistantSettings.MaxAboutMe" Counter="AssistantSettings.MaxAboutMe"
+                          Placeholder="e.g. Mika, 2nd-year nursing student. Likes short answers." />
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-1">Her personality with them</MudText>
+            <MudTextField T="string" @bind-Value="_personality" Variant="Variant.Outlined" Lines="2" AutoGrow="true"
+                          MaxLength="AssistantSettings.MaxPersonality" HelperText="Leave empty for friendly and to the point." />
+            <MudText Typo="Typo.caption" Class="muted d-block mt-3">They can see these but not change them.</MudText>
+
+            @if (_problem is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_problem</MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_words is null || _saving" OnClick="SaveAsync">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Person Person { get; set; } = default!;
+
+    private AssistantWords? _words;
+    private string _aboutMe = "";
+    private string _personality = "";
+    private string? _key;
+    private bool _removeKey;
+    private bool _saving;
+    private string? _problem;
+
+    private string KeyLine => Person.KeySetBy switch
+    {
+        "self" => "They added their own key.",
+        "owner" => "You added a key for them.",
+        _ => "None yet, so their Amiki is off. Free keys come from Google AI Studio.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _words = await People.WordsAsync(Person.Id);
+        (_aboutMe, _personality) = (_words.AboutMe, _words.Personality);
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _problem = null;
+        var words = new AssistantWords(_aboutMe ?? "", _personality ?? "");
+        if (words != _words) _problem = await People.SetWordsAsync(Person.Id, words);
+        if (_problem is null && _removeKey) _problem = await People.SetKeyAsync(Person.Id, null);
+        else if (_problem is null && !string.IsNullOrWhiteSpace(_key)) _problem = await People.SetKeyAsync(Person.Id, _key);
+        _saving = false;
+        if (_problem is null) Dialog.Close(DialogResult.Ok(true));
+    }
+}

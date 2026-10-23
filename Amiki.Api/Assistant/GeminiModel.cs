@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Amiki.Api.Users;
 using Amiki.Modules.Assistant;
 using Microsoft.Extensions.Options;
 
@@ -9,8 +10,11 @@ namespace Amiki.Api.Assistant;
 /// <summary>
 /// Google's Gemini API (generateContent). The key goes in a header, never in the URL, so it can't
 /// end up in logs.
+///
+/// Each person uses their own key. The one in the config (Gemini__ApiKey) is the owner's, and is
+/// never used for anyone else: a person without a key simply has the assistant off.
 /// </summary>
-public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options) : ILanguageModel
+public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options, UserContext user) : ILanguageModel
 {
     private const string Endpoint = "https://generativelanguage.googleapis.com/v1beta/models/";
 
@@ -18,6 +22,10 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
     internal const int MaxToolRounds = 5;
 
     public string Description => $"Gemini · chat: {options.Value.Model} · background: {options.Value.LightModel}";
+
+    private string? ApiKey => user.GeminiKey ?? (user.IsOwner && options.Value.Enabled ? options.Value.ApiKey : null);
+
+    public bool IsEnabled => !string.IsNullOrWhiteSpace(ApiKey);
 
     public string? LastNote { get; private set; }
 
@@ -130,8 +138,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
     /// <summary>Sends a request and returns the first candidate's content (role + parts).</summary>
     private async Task<JsonObject> SendAsync(string model, JsonObject body, CancellationToken ct)
     {
-        var settings = options.Value;
-        if (!settings.Enabled) throw new LanguageModelException("The assistant isn't set up: add a Gemini API key (Gemini__ApiKey).");
+        var key = ApiKey ?? throw new LanguageModelException("The assistant isn't set up: add a Gemini API key in Amiki's settings.");
 
         var json = body.ToJsonString();
         HttpResponseMessage response;
@@ -141,7 +148,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
             {
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
             };
-            request.Headers.Add("x-goog-api-key", settings.ApiKey);
+            request.Headers.Add("x-goog-api-key", key);
             try
             {
                 response = await http.SendAsync(request, ct);

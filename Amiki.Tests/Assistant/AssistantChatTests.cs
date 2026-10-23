@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Amiki.Api.Assistant;
+using Amiki.Api.Users;
 using Amiki.Modules.Assistant;
 using Microsoft.Extensions.Options;
 
@@ -118,7 +119,7 @@ public class AssistantChatTests
     }
 
     private static GeminiModel Model(ScriptedGemini fake) =>
-        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }));
+        new(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }), new UserContext());
 
     private const string CallsBalances = """{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"account_balances","args":{}},"thoughtSignature":"sig"}]}}]}""";
     private const string SaysDone = """{"candidates":[{"content":{"role":"model","parts":[{"text":"You have ₱5,089 in Cash."}]}}]}""";
@@ -179,7 +180,7 @@ public class AssistantChatTests
     public async Task When_the_chat_model_is_out_of_quota_the_light_model_answers()
     {
         var fake = new LimitedThenOk();
-        var model = new GeminiModel(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = "k", Model = "big", LightModel = "small" }));
+        var model = new GeminiModel(new HttpClient(fake), Options.Create(new GeminiOptions { ApiKey = "k", Model = "big", LightModel = "small" }), new UserContext());
 
         var reply = await model.ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
 
@@ -210,7 +211,7 @@ public class AssistantChatTests
         GeminiModel.RetryDelays = [TimeSpan.Zero, TimeSpan.Zero];
         var busy = new BusyThenOk(failures: 2);
 
-        var reply = await new GeminiModel(new HttpClient(busy), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }))
+        var reply = await new GeminiModel(new HttpClient(busy), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }), new UserContext())
             .ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
 
         Assert.Equal("You have ₱5,089 in Cash.", reply);

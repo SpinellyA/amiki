@@ -1,49 +1,52 @@
 using System.Security.Claims;
 using Amiki.Api.Data;
+using Amiki.Api.Users;
 using Amiki.Core;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 
 namespace Amiki.Api.Security;
 
 /// <summary>
-/// Sign-in with Google, open to the addresses in Amiki:AllowedEmails only.
+/// Sign-in with Google, open to the owner (Amiki:OwnerEmail) and the people the owner has added.
 ///
 /// The server runs the whole OAuth exchange and then keeps you signed in with an HttpOnly cookie,
-/// so no token ever lives in browser JavaScript. Other Google accounts are turned away at the
-/// callback (no cookie is issued) and, as a second check, every /api request re-checks the email.
+/// so no token ever lives in browser JavaScript. Accounts that aren't on the list are turned away at
+/// the callback (no cookie is issued) and, as a second check, every /api request looks the person
+/// up again (<see cref="UserContextMiddleware"/>), so removing someone locks them out at once.
 ///
 /// In Development without Google credentials configured, sign-in is off so local work needs no
-/// setup. Anywhere else the app refuses to start unless Google and the allowlist are configured.
+/// setup. Anywhere else the app refuses to start unless Google and the owner are configured.
 /// </summary>
 public static class OwnerAuth
 {
-    public const string Policy = "Owner";
+    public const string Policy = "SignedIn";
 
-    public sealed record Settings(bool Enabled, IReadOnlySet<string> AllowedEmails);
+    public sealed record Settings(bool Enabled, string OwnerEmail);
 
     public static Settings AddOwnerAuth(this WebApplicationBuilder builder)
     {
         var config = builder.Configuration;
         var clientId = config["Authentication:Google:ClientId"];
         var clientSecret = config["Authentication:Google:ClientSecret"];
-        var allowed = config.GetSection("Amiki:AllowedEmails").Get<string[]>()?
-            .Where(e => !string.IsNullOrWhiteSpace(e)).Select(e => e.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+        // Amiki:AllowedEmails is the older setting; its first address is the owner.
+        var ownerEmail = config["Amiki:OwnerEmail"]
+            ?? config.GetSection("Amiki:AllowedEmails").Get<string[]>()?.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e));
 
         var googleConfigured = !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret);
         if (!googleConfigured && !builder.Environment.IsDevelopment())
             throw new InvalidOperationException(
                 "Google sign-in isn't configured. Set Authentication__Google__ClientId and Authentication__Google__ClientSecret.");
-        if (googleConfigured && allowed.Count == 0)
-            throw new InvalidOperationException("Set Amiki:AllowedEmails, or nobody will be able to sign in.");
+        if (googleConfigured && string.IsNullOrWhiteSpace(ownerEmail))
+            throw new InvalidOperationException("Set Amiki:OwnerEmail, or nobody will be able to sign in.");
 
-        // Cookie encryption keys live in Postgres, so restarts and redeploys don't sign you out.
+        // Cookie and API-key encryption keys live in Postgres, so restarts and redeploys don't sign you out.
         builder.Services.AddDataProtection().SetApplicationName("Amiki").PersistKeysToDbContext<AmikiDb>();
 
-        var settings = new Settings(googleConfigured, allowed);
+        var settings = new Settings(googleConfigured, (ownerEmail ?? "owner@localhost").Trim().ToLowerInvariant());
         builder.Services.AddSingleton(settings);
         if (!googleConfigured)
         {
@@ -75,14 +78,19 @@ public static class OwnerAuth
                 options.ClientId = clientId!;
                 options.ClientSecret = clientSecret!;
                 options.ClaimActions.MapJsonKey("email_verified", "email_verified");
-                options.Events.OnTicketReceived = ctx =>
+                options.Events.OnTicketReceived = async ctx =>
                 {
-                    if (!IsOwner(ctx.Principal, allowed))
+                    var db = ctx.HttpContext.RequestServices.GetRequiredService<AmikiDb>();
+                    var person = await AllowedPersonAsync(ctx.Principal, db);
+                    if (person is null)
                     {
                         ctx.Response.Redirect("/?auth=denied");
                         ctx.HandleResponse(); // stops here: no cookie for this account
+                        return;
                     }
-                    return Task.CompletedTask;
+                    person.Name = ctx.Principal!.FindFirstValue(ClaimTypes.Name) ?? person.Name;
+                    person.LastSignInAt = DateTime.Now;
+                    await db.SaveChangesAsync();
                 };
                 options.Events.OnRemoteFailure = ctx =>
                 {
@@ -92,8 +100,9 @@ public static class OwnerAuth
                 };
             });
 
+        // Who exactly may use the API is checked against the database by UserContextMiddleware.
         builder.Services.AddAuthorizationBuilder()
-            .AddPolicy(Policy, policy => policy.RequireAuthenticatedUser().RequireAssertion(ctx => IsOwner(ctx.User, allowed)));
+            .AddPolicy(Policy, policy => policy.RequireAuthenticatedUser());
 
         return settings;
     }
@@ -102,12 +111,12 @@ public static class OwnerAuth
     {
         var auth = app.MapGroup("/auth");
 
-        auth.MapGet("/me", (ClaimsPrincipal user) =>
+        // UserContextMiddleware has already refused anyone who isn't allowed in.
+        auth.MapGet("/me", async (UserContext user, AmikiDb db, CancellationToken ct) =>
         {
-            if (!settings.Enabled) return Results.Ok(new SessionInfo("dev@localhost", "Local dev", SignInEnabled: false));
-            return IsOwner(user, settings.AllowedEmails)
-                ? Results.Ok(new SessionInfo(user.FindFirstValue(ClaimTypes.Email)!, user.FindFirstValue(ClaimTypes.Name) ?? "", SignInEnabled: true))
-                : Results.Unauthorized();
+            var person = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.SignedInId, ct);
+            var name = settings.Enabled ? person.Name : person.IsOwner ? "Local dev" : person.Email;
+            return Results.Ok(new SessionInfo(person.Email, name, settings.Enabled, person.IsOwner, NoticePending: person.NoticeSeenAt is null));
         });
 
         if (!settings.Enabled) return;
@@ -123,14 +132,13 @@ public static class OwnerAuth
         });
     }
 
-    private static bool IsOwner(ClaimsPrincipal? user, IReadOnlySet<string> allowed)
+    private static async Task<AppUser?> AllowedPersonAsync(ClaimsPrincipal? user, AmikiDb db)
     {
-        var email = user?.FindFirstValue(ClaimTypes.Email);
+        var email = user?.FindFirstValue(ClaimTypes.Email)?.Trim().ToLowerInvariant();
         var verified = user?.FindFirstValue("email_verified");
-        return email is not null
-            && allowed.Contains(email)
-            // Refuse an address Google itself marks as unverified (a Gmail address always is verified).
-            && (verified is null || verified.Equals("true", StringComparison.OrdinalIgnoreCase));
+        // Refuse an address Google itself marks as unverified (a Gmail address always is verified).
+        if (email is null || (verified is not null && !verified.Equals("true", StringComparison.OrdinalIgnoreCase))) return null;
+        return await db.Users.FirstOrDefaultAsync(u => u.Email == email && u.Enabled);
     }
 
     // Only redirect back into Amiki itself, never to another site ("//evil.com" included).

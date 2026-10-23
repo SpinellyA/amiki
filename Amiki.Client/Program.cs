@@ -28,8 +28,11 @@ builder.Services.AddMudServices(config =>
 });
 
 // The API serves this app, so it lives at the same address.
-builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+var http = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
+builder.Services.AddSingleton(http);
+builder.Services.AddSingleton<Viewing>();
 builder.Services.AddSingleton<Api>();
+builder.Services.AddSingleton<PeopleClient>();
 builder.Services.AddSingleton<Session>();
 builder.Services.AddSingleton<SyncQueue>();
 builder.Services.AddSingleton<DataSync>();
@@ -45,4 +48,7 @@ builder.Services.AddDiaryModule();
 builder.Services.AddReviewModule();
 builder.Services.AddPomodoroModule();
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+// Before anything loads: if this tab is viewing someone's Amiki, every request says so.
+host.Services.GetRequiredService<Viewing>().Apply(http);
+await host.RunAsync();

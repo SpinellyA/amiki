@@ -1,6 +1,7 @@
 @page "/diary"
 @implements IDisposable
 @inject DiaryStore Store
+@inject Viewing Viewing
 
 <PageTitle>Diary · Amiki</PageTitle>
 
@@ -12,7 +13,7 @@
             {
                 @($"{Store.Streak} days in a row. ")
             }
-            @(Store.Written.Count()) page@(Store.Written.Count() == 1 ? "" : "s") so far. Private: only you can sign in to Amiki.
+            @(Store.Written.Count()) page@(Store.Written.Count() == 1 ? "" : "s") so far. Private: only you can read it.
         </MudText>
     </div>
     <div class="head-actions review-weeks">
@@ -23,6 +24,16 @@
     </div>
 </div>
 
+@if (Viewing.IsViewing)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Large" />
+        <MudText Typo="Typo.body1">@Viewing.Label's diary is private.</MudText>
+        <MudText Typo="Typo.body2">Nobody else can read it, you included.</MudText>
+    </div>
+}
+else
+{
 <div class="diary-layout">
     <DiaryEditor @key="_day" Day="_day" />
 
@@ -44,6 +55,7 @@
         <DiaryEntryList Selected="_day" OnPick="Go" />
     </div>
 </div>
+}
 
 @code {
     private static DateTime ThisMonth => new(DateTime.Today.Year, DateTime.Today.Month, 1);

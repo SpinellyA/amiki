@@ -1,4 +1,5 @@
 using Amiki.Api.Data;
+using Amiki.Api.Users;
 using Amiki.Modules.Assistant;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,7 @@ namespace Amiki.Api.Assistant;
 /// A chat turn with Amiki: her instructions from your settings, the lookups and suggestions
 /// you've allowed, and the model. Suggestions come back as proposals for you to confirm.
 /// </summary>
-public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, AssistantTools tools, AssistantProposals proposals)
+public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, AssistantTools tools, AssistantProposals proposals, UserContext user)
 {
     public async Task<ChatReply> ChatAsync(ChatRequest request, CancellationToken ct)
     {
@@ -48,7 +49,8 @@ public sealed class AssistantChatService(AmikiDb db, ILanguageModel model, Assis
     public Task<string> TestAsync(CancellationToken ct) =>
         model.ChatAsync("You are Amiki, a friendly assistant.", [], "Say hi to me in under ten words.", [], (_, _) => throw new ToolException("No tools."), ThinkingLevels.Low, ct);
 
-    private IReadOnlyList<ToolDefinition> Allowed(AssistantSettings settings) => [.. tools.For(settings), .. proposals.For(settings)];
+    // Only the owner edits what she knows about someone, so "remember this" is the owner's alone.
+    private IReadOnlyList<ToolDefinition> Allowed(AssistantSettings settings) => [.. tools.For(settings), .. proposals.For(settings, canRemember: user.IsOwner)];
 
     // Saved settings, or the defaults if you haven't changed anything yet.
     private async Task<AssistantSettings> SettingsAsync(CancellationToken ct) =>

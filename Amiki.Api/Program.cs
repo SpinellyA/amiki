@@ -2,6 +2,7 @@ using Amiki.Api.Assistant;
 using Amiki.Api.Data;
 using Amiki.Api.Endpoints;
 using Amiki.Api.Security;
+using Amiki.Api.Users;
 using Amiki.Core;
 using Amiki.Modules.Finance;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Amiki")
     ?? throw new InvalidOperationException("Set the connection string ConnectionStrings:Amiki (environment variable ConnectionStrings__Amiki).");
 
+// Who each request is for (see UserContextMiddleware); the database uses it to keep people's data apart.
+builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton<ApiKeyProtector>();
 builder.Services.AddDbContext<AmikiDb>(options => options.UseNpgsql(connectionString));
 builder.Services.ConfigureHttpJsonOptions(options => AmikiJson.Configure(options.SerializerOptions));
 builder.Services.AddProblemDetails();
@@ -19,11 +23,12 @@ builder.Services.AddAssistant(builder.Configuration);
 
 var app = builder.Build();
 
-// One person, one instance: applying migrations at startup keeps deploys to a single step.
+// One instance: applying migrations at startup keeps deploys to a single step.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AmikiDb>();
     await db.Database.MigrateAsync();
+    await OwnerAccount.EnsureAsync(db, auth.OwnerEmail);
     if (app.Environment.IsDevelopment()) await DevSeed.RunAsync(db);
 }
 
@@ -44,6 +49,7 @@ else
 app.UseRouting();
 if (auth.Enabled) app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UserContextMiddleware>();
 app.MapStaticAssets();
 
 app.MapAuthEndpoints(auth);
@@ -87,8 +93,10 @@ api.MapEntity("tasks", db => db.Tasks);
 api.MapEntity("ideas", db => db.Ideas);
 api.MapEntity("plans", db => db.Plans, Plan.CheckReplace);
 api.MapEntity("weekly-notes", db => db.WeeklyNotes);
-api.MapEntity("diary", db => db.Diary);
+// The diary is yours alone: not even the owner sees it when viewing your Amiki.
+api.MapEntity("diary", db => db.Diary, privateFromOwner: true);
 api.MapAssistant();
+api.MapPeople();
 
 // Money: every change is audited, and account and category names must be real ones.
 api.MapEntity("categories", db => db.Categories,

@@ -4,6 +4,8 @@
 @inject AssistantSettingsStore Store
 @inject ChatSession Chat
 @inject Amiki.Data.Api Api
+@inject Session Session
+@inject Viewing Viewing
 
 <PageTitle>Amiki settings</PageTitle>
 
@@ -39,11 +41,18 @@
     <MudPaper Outlined="true" Class="widget">
         <div class="widget-head"><MudIcon Icon="@Icons.Material.Outlined.Person" Size="Size.Small" /><span>About you</span></div>
         <div class="settings-body">
-            <MudTextField T="string" @bind-Value="_aboutMe" Label="What she should always know" Variant="Variant.Outlined" Lines="5" AutoGrow="true"
+            @if (!IsOwner)
+            {
+                <div class="settings-locked mb-3">
+                    <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" />
+                    <span>The owner of this Amiki sets these for you.</span>
+                </div>
+            }
+            <MudTextField T="string" @bind-Value="_aboutMe" Label="What she should always know" Variant="Variant.Outlined" Lines="5" AutoGrow="true" ReadOnly="!IsOwner"
                           MaxLength="AssistantSettings.MaxAboutMe" Counter="AssistantSettings.MaxAboutMe" OnBlur="SaveText"
                           HelperText="Your name, school and course, what you're working on, how you like answers…"
                           Placeholder="e.g. 3rd-year CS student. Building Amiki on the side. Keep answers short; Taglish is fine." />
-            <MudTextField T="string" @bind-Value="_personality" Label="Her personality" Variant="Variant.Outlined" Lines="2" AutoGrow="true"
+            <MudTextField T="string" @bind-Value="_personality" Label="Her personality" Variant="Variant.Outlined" Lines="2" AutoGrow="true" ReadOnly="!IsOwner"
                           MaxLength="AssistantSettings.MaxPersonality" OnBlur="SaveText" Class="mt-3"
                           HelperText="Leave empty for friendly and to the point."
                           Placeholder="e.g. A blunt but kind coach who keeps me on track." />
@@ -59,7 +68,7 @@
             }
             else if (!_status.Enabled)
             {
-                <MudText Typo="Typo.body2">Not set up. Add a Gemini API key on the server (<code>Gemini__ApiKey</code>) to turn Amiki on.</MudText>
+                <MudText Typo="Typo.body2">Off: there's no Gemini key to use yet. Add one below to turn Amiki on.</MudText>
             }
             else
             {
@@ -81,6 +90,11 @@
             }
         </div>
     </MudPaper>
+
+    @if (!Viewing.IsViewing)
+    {
+        <GeminiKeyCard Changed="RecheckAsync" />
+    }
 
     <MudPaper Outlined="true" Class="widget">
         <div class="widget-head">
@@ -121,6 +135,11 @@
     private string? _testResult;
 
     private AssistantSettings S => Store.Current;
+
+    // What she knows about you and her personality are the owner's to set for everyone else.
+    private bool IsOwner => Session.Current is { IsOwner: true } && !Viewing.IsViewing;
+
+    private async Task RecheckAsync() => _status = await Chat.StatusAsync();
 
     protected override async Task OnInitializedAsync()
     {

@@ -23,6 +23,49 @@ namespace Amiki.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Amiki.Api.Users.AppUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("GeminiKeyProtected")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GeminiKeySetBy")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("LastSignInAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("NoticeSeenAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("app_users", (string)null);
+                });
+
             modelBuilder.Entity("Amiki.Core.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -55,19 +98,26 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("At");
 
                     b.HasIndex("EntityId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("audit_log", (string)null);
                 });
 
             modelBuilder.Entity("Amiki.Modules.Assistant.AssistantSettings", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("AboutMe")
@@ -105,15 +155,17 @@ namespace Amiki.Api.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.ToTable("assistant_settings", (string)null);
                 });
 
             modelBuilder.Entity("Amiki.Modules.Assistant.DailyBriefing", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Day")
@@ -127,9 +179,9 @@ namespace Amiki.Api.Data.Migrations
                     b.Property<DateTime>("WrittenAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
-                    b.HasIndex("Day")
+                    b.HasIndex("UserId", "Day")
                         .IsUnique();
 
                     b.ToTable("daily_briefings", (string)null);
@@ -137,8 +189,10 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Diary.DiaryEntry", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Day")
@@ -155,9 +209,9 @@ namespace Amiki.Api.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
-                    b.HasIndex("Day")
+                    b.HasIndex("UserId", "Day")
                         .IsUnique();
 
                     b.ToTable("diary_entries", (string)null);
@@ -165,6 +219,9 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Finance.Account", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Name")
                         .HasColumnType("text");
 
@@ -172,37 +229,17 @@ namespace Amiki.Api.Data.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
-                    b.HasKey("Name");
+                    b.HasKey("UserId", "Name");
 
                     b.ToTable("accounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Name = "Cash",
-                            OpeningBalance = 0m
-                        },
-                        new
-                        {
-                            Name = "GCash",
-                            OpeningBalance = 0m
-                        },
-                        new
-                        {
-                            Name = "Maribank",
-                            OpeningBalance = 0m
-                        },
-                        new
-                        {
-                            Name = "Landbank",
-                            OpeningBalance = 0m
-                        });
                 });
 
             modelBuilder.Entity("Amiki.Modules.Finance.BalanceCheck", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Account")
@@ -223,7 +260,7 @@ namespace Amiki.Api.Data.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.HasIndex("Account", "CheckedAt");
 
@@ -232,8 +269,10 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Finance.Category", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -254,156 +293,20 @@ namespace Amiki.Api.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
-                    b.HasIndex("Kind", "Name")
+                    b.HasIndex("UserId", "Kind", "Name")
                         .IsUnique();
 
                     b.ToTable("categories", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000001"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "Restaurant",
-                            Kind = "Expense",
-                            Name = "Food"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000002"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "DirectionsCar",
-                            Kind = "Expense",
-                            Name = "Transport"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000003"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "School",
-                            Kind = "Expense",
-                            Name = "School"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000004"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "PhoneAndroid",
-                            Kind = "Expense",
-                            Name = "Load & data"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000005"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "ReceiptLong",
-                            Kind = "Expense",
-                            Name = "Bills"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000006"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "ShoppingBag",
-                            Kind = "Expense",
-                            Name = "Shopping"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000007"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "LocalHospital",
-                            Kind = "Expense",
-                            Name = "Health"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000008"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "SportsEsports",
-                            Kind = "Expense",
-                            Name = "Fun"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000009"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "Toll",
-                            Kind = "Expense",
-                            Name = "Fees"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-00000000000a"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "MoreHoriz",
-                            Kind = "Expense",
-                            Name = "Other"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-00000000000b"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "FactCheck",
-                            Kind = "Expense",
-                            Name = "Balance fix"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000101"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "Savings",
-                            Kind = "Income",
-                            Name = "Allowance"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000102"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "Work",
-                            Kind = "Income",
-                            Name = "Salary"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000103"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "CardGiftcard",
-                            Kind = "Income",
-                            Name = "Gift"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000104"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "Replay",
-                            Kind = "Income",
-                            Name = "Refund"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000105"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "AttachMoney",
-                            Kind = "Income",
-                            Name = "Other income"
-                        },
-                        new
-                        {
-                            Id = new Guid("1f0c8a01-0000-4000-8000-000000000106"),
-                            CreatedAt = new DateTime(2026, 10, 6, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Icon = "FactCheck",
-                            Kind = "Income",
-                            Name = "Balance fix"
-                        });
                 });
 
             modelBuilder.Entity("Amiki.Modules.Finance.Plan", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ArchivedAt")
@@ -430,15 +333,17 @@ namespace Amiki.Api.Data.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.ToTable("plans", (string)null);
                 });
 
             modelBuilder.Entity("Amiki.Modules.Finance.Transaction", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Account")
@@ -468,7 +373,7 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.HasIndex("Date");
 
@@ -477,8 +382,10 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Finance.Transfer", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Amount")
@@ -507,7 +414,7 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.HasIndex("Date");
 
@@ -516,8 +423,10 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Ideas.Idea", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ArchivedAt")
@@ -542,15 +451,17 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.ToTable("ideas", (string)null);
                 });
 
             modelBuilder.Entity("Amiki.Modules.Inbox.InboxItem", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CapturedAt")
@@ -560,15 +471,17 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.ToTable("inbox_items", (string)null);
                 });
 
             modelBuilder.Entity("Amiki.Modules.Review.WeeklyNote", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("ToChange")
@@ -587,9 +500,9 @@ namespace Amiki.Api.Data.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
-                    b.HasIndex("WeekStart")
+                    b.HasIndex("UserId", "WeekStart")
                         .IsUnique();
 
                     b.ToTable("weekly_notes", (string)null);
@@ -597,8 +510,10 @@ namespace Amiki.Api.Data.Migrations
 
             modelBuilder.Entity("Amiki.Modules.Tasks.TaskItem", b =>
                 {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("CompletedAt")
@@ -628,7 +543,7 @@ namespace Amiki.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "Id");
 
                     b.HasIndex("IdeaId");
 
