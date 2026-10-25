@@ -2244,40 +2244,69 @@ html, body {
     background: var(--mud-palette-background, #0E1014);
 }
 
-.loading-progress {
-    position: absolute;
+/* Loading screen: the wordmark, its dot breathing like a light that's about to come on, and a
+   thin line that fills as the app downloads. Fixed colors: the theme isn't loaded yet. */
+.boot {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding-bottom: 8vh;
+    background: radial-gradient(60rem 30rem at 50% 42%, rgba(142, 128, 255, 0.07), transparent 70%), #0E1014;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+.boot-mark { display: flex; align-items: center; gap: 0.85rem; }
+
+.boot-dot {
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: #8E80FF;
+    box-shadow: 0 0 0 0 rgba(142, 128, 255, 0.5);
+    animation: boot-breathe 2.4s ease-in-out infinite;
+}
+
+.boot-name {
+    font-size: 2.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #E7E9EE;
+    line-height: 1;
+}
+
+.boot-bar {
+    width: 9.5rem;
+    height: 2px;
+    border-radius: 2px;
+    background: #242832;
+    overflow: hidden;
+}
+
+.boot-bar span {
     display: block;
-    width: 8rem;
-    height: 8rem;
-    inset: 20vh 0 auto 0;
-    margin: 0 auto 0 auto;
+    height: 100%;
+    width: var(--blazor-load-percentage, 0%);
+    background: #8E80FF;
+    transition: width 0.15s ease-out;
 }
 
-.loading-progress circle {
-    fill: none;
-    stroke: #242832;
-    stroke-width: 0.6rem;
-    transform-origin: 50% 50%;
-    transform: rotate(-90deg);
-}
-
-.loading-progress circle:last-child {
-    stroke: #8E80FF;
-    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
-    transition: stroke-dasharray 0.05s ease-in-out;
-}
-
-.loading-progress-text {
-    position: absolute;
-    text-align: center;
-    font-weight: bold;
+.boot-text {
+    font-size: 0.8rem;
     color: #8C91A0;
-    font-family: system-ui, sans-serif;
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    letter-spacing: 0.04em;
 }
 
-.loading-progress-text:after {
-    content: var(--blazor-load-percentage-text, "Loading");
+@keyframes boot-breathe {
+    0%, 100% { transform: scale(0.85); box-shadow: 0 0 0 0 rgba(142, 128, 255, 0.45); opacity: 0.8; }
+    50% { transform: scale(1); box-shadow: 0 0 1.4rem 0.45rem rgba(142, 128, 255, 0.35); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .boot-dot { animation: none; }
 }
 
 /* Viewing someone else's Amiki: a teal ribbon (never the amber of "offline") so it can't be mistaken for yours. */

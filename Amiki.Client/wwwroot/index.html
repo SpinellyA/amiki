@@ -21,11 +21,15 @@
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <!-- Shown while the app downloads; Blazor replaces it. Progress comes from --blazor-load-percentage. -->
+        <div class="boot" role="status" aria-label="Amiki is loading">
+            <div class="boot-mark">
+                <span class="boot-dot" aria-hidden="true"></span>
+                <span class="boot-name">amiki</span>
+            </div>
+            <div class="boot-bar" aria-hidden="true"><span></span></div>
+            <div class="boot-text">Waking up</div>
+        </div>
     </div>
 
     <div id="blazor-error-ui">
