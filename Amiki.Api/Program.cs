@@ -129,3 +129,6 @@ app.MapFallbackToFile("index.html", new StaticFileOptions
 });
 
 app.Run();
+
+// Lets the integration tests start this app (WebApplicationFactory<Program>).
+public partial class Program;
