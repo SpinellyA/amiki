@@ -28,7 +28,8 @@ Project references enforce it: Domain code can't see EF Core because it doesn't 
   without the extra indirection. (MediatR's newer versions also need a license check.)
 - **Minimal APIs, not FastEndpoints.** Each feature maps its own routes (`MapFinance()`, ...).
   Simple "save this object for this person" entities share one generic endpoint; their rules
-  live in an `IEntityRules<T>` class per entity in Application, never in Program.cs.
+  live in an `EntityRules<T>` subclass per entity in Application (e.g. `TransactionRules`),
+  registered in `Application/DependencyInjection.cs`, never in Program.cs.
 - **No repository per entity.** `IAmikiDb` (EF's DbSets) is the data port. The per-person query
   filter makes it safe to use directly. Cross-person admin work goes through `IPeopleData`.
 
@@ -37,7 +38,13 @@ Project references enforce it: Domain code can't see EF Core because it doesn't 
 - A rule about the business goes in Domain (on the type it's about) or Application. Never in an
   endpoint, never duplicated between client and server.
 - No grab-bag "helper"/"utils" classes. Logic lives on the type it belongs to, or in a small
-  class named after what it is (`Week`, `Ledger`, `ToolArguments`).
+  class named after what it is (`WeekRange`, `Ledger`, `ToolArguments`, `Tags`).
+- Amiki's tools: one class per lookup (`ILookupTool`) or suggestion (`IProposalTool`) in
+  Application/Assistant/Tools, registered in DependencyInjection. Nothing else changes to add one.
+- Use cases return `Outcome` / `Outcome<T>` (ok, invalid, not found, conflict, forbidden); the
+  Api turns that into HTTP with `ToHttp()`. Use cases never know about HTTP.
+- Tests: unit tests for Domain/Application; integration tests in Amiki.Tests/Integration run the
+  real API on a throwaway Postgres (needs Docker running).
 - No static mutable state; use an injected singleton.
 - Time comes from the injected `TimeProvider` (set to Amiki's time zone), never `DateTime.Now`
   on the server: the server runs in UTC.

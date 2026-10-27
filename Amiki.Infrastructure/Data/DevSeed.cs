@@ -10,14 +10,14 @@ namespace Amiki.Infrastructure.Data;
 /// Sample data for a brand-new Development database, so every screen has something on it.
 /// Runs only when the database is empty, and never outside Development.
 /// </summary>
-public sealed class DevSeed(AmikiDb db)
+public sealed class DevSeed(AmikiDb db, TimeProvider time)
 {
     public async Task RunAsync()
     {
         if (await db.Tasks.AnyAsync() || await db.Inbox.AnyAsync() || await db.Transactions.AnyAsync()) return;
 
-        var today = DateTime.Today;
-        var now = DateTime.Now;
+        var now = time.GetLocalNow().DateTime;
+        var today = now.Date;
 
         db.Tasks.AddRange(Tasks(today, now));
         db.Ideas.AddRange(Ideas(now));
@@ -42,7 +42,7 @@ public sealed class DevSeed(AmikiDb db)
 
         var accounts = await db.Accounts.ToListAsync();
         var balance = accounts.Sum(a => a.OpeningBalance) + transactions.Sum(t => t.Signed);
-        db.Plans.AddRange(Plans(today, balance));
+        db.Plans.AddRange(Plans(today, now, balance));
 
         await db.SaveChangesAsync();
     }
@@ -140,7 +140,7 @@ public sealed class DevSeed(AmikiDb db)
         ];
     }
 
-    private static IEnumerable<Plan> Plans(DateTime today, decimal balance)
+    private static IEnumerable<Plan> Plans(DateTime today, DateTime now, decimal balance)
     {
         var nextMonth = new DateTime(today.Year, today.Month, 1).AddMonths(1);
         PlanItem Out(string name, decimal amount) => new() { Name = name, Amount = amount, Date = today };
@@ -151,12 +151,12 @@ public sealed class DevSeed(AmikiDb db)
         [
             new()
             {
-                Name = "Gaming laptop", StartBalance = balance, StartDate = today, CreatedAt = DateTime.Now,
+                Name = "Gaming laptop", StartBalance = balance, StartDate = today, CreatedAt = now,
                 Items = [Out("New laptop", 35000), Out("Mouse", 1200), Out("Monthsary date", 1500), Out("Something something", 1000), In($"{nextMonth:MMMM} money", 10000, nextMonth)],
             },
             new()
             {
-                Name = "Budget laptop", StartBalance = balance, StartDate = today, CreatedAt = DateTime.Now.AddSeconds(1),
+                Name = "Budget laptop", StartBalance = balance, StartDate = today, CreatedAt = now.AddSeconds(1),
                 Items = [Out("New laptop", 25000), Out("Mouse", 650), Out("Monthsary date", 1500), Out("Something something", 1000), In($"{nextMonth:MMMM} money", 10000, nextMonth)],
             },
             new()

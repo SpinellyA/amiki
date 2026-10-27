@@ -2,8 +2,6 @@ using Amiki.Domain;
 
 namespace Amiki.Domain.Finance;
 
-public enum TxKind { Expense, Income }
-
 public sealed class Transaction : IEntity
 {
     public const int MaxNote = 500;
@@ -33,5 +31,3 @@ public sealed class Transaction : IEntity
         $"{(Kind == TxKind.Income ? "Received" : "Spent")} {Money.Format(Amount)} · {Category} · {Account}"
         + (Note.Length > 0 && Note != Category ? $" · “{Note}”" : "");
 }
-
-public sealed record Account(string Name, decimal OpeningBalance);
