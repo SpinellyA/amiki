@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Amiki.Application.Assistant;
+using Amiki.Application.Assistant.Tools;
+using Amiki.Application.Assistant.Tools.Lookups;
 using Amiki.Infrastructure.Assistant;
 using Amiki.Api.Users;
 using Amiki.Application.People;
@@ -18,7 +20,7 @@ public class AssistantChatTests
     [Fact]
     public void She_is_always_told_the_diary_is_off_limits()
     {
-        var prompt = AssistantPrompt.Build(new AssistantSettings(), Now, new AssistantTools(null!).For(new AssistantSettings()));
+        var prompt = AssistantPrompt.Build(new AssistantSettings(), Now, Toolbox.Lookups().For(new AssistantSettings()));
 
         Assert.Contains("can't see the user's diary", prompt);
         Assert.Contains("Wednesday, October 21, 2026", prompt);
@@ -50,10 +52,10 @@ public class AssistantChatTests
     [Fact]
     public void Tools_follow_the_switches_and_there_is_never_a_diary_tool()
     {
-        var tools = new AssistantTools(null!);
+        var tools = Toolbox.Lookups();
 
-        var all = tools.For(new AssistantSettings()).Select(t => t.Area).Distinct().ToList();
-        var noMoney = tools.For(new AssistantSettings { SeeMoney = false }).Select(t => t.Area).ToList();
+        var all = tools.For(new AssistantSettings()).Select(t => t.AreaName).Distinct().ToList();
+        var noMoney = tools.For(new AssistantSettings { SeeMoney = false }).Select(t => t.AreaName).ToList();
         var nothing = tools.For(new AssistantSettings { SeeTasks = false, SeeIdeas = false, SeeMoney = false, SeeInbox = false, SeeWeeklyNotes = false });
 
         Assert.Equal(["tasks", "ideas", "money", "inbox", "weekly notes"], all);
@@ -65,7 +67,7 @@ public class AssistantChatTests
     [Fact]
     public async Task A_tool_thats_switched_off_wont_run_even_if_asked()
     {
-        var tools = new AssistantTools(null!);
+        var tools = Toolbox.Lookups();
         var allowed = tools.For(new AssistantSettings { SeeMoney = false });
 
         await Assert.ThrowsAsync<ToolException>(() =>
@@ -75,26 +77,27 @@ public class AssistantChatTests
     [Fact]
     public void Date_ranges_are_inclusive_and_default_to_this_month()
     {
-        var (from, to) = AssistantTools.Range(new JsonObject { ["from"] = "2026-10-01", ["to"] = "2026-10-31" }, Now.Date);
-        var (defaultFrom, defaultTo) = AssistantTools.Range([], Now.Date);
+        var (from, to) = new ToolArguments(new JsonObject { ["from"] = "2026-10-01", ["to"] = "2026-10-31" }).DateRange(Now.Date);
+        var (defaultFrom, defaultTo) = new ToolArguments([]).DateRange(Now.Date);
 
         Assert.Equal((new DateTime(2026, 10, 1), new DateTime(2026, 11, 1)), (from, to));
         Assert.Equal((new DateTime(2026, 10, 1), new DateTime(2026, 10, 22)), (defaultFrom, defaultTo));
-        Assert.Throws<ToolException>(() => AssistantTools.Range(new JsonObject { ["from"] = "2026-10-10", ["to"] = "2026-10-01" }, Now.Date));
-        Assert.Throws<ToolException>(() => AssistantTools.Range(new JsonObject { ["from"] = "last week" }, Now.Date));
+        Assert.Throws<ToolException>(() => new ToolArguments(new JsonObject { ["from"] = "2026-10-10", ["to"] = "2026-10-01" }).DateRange(Now.Date));
+        Assert.Throws<ToolException>(() => new ToolArguments(new JsonObject { ["from"] = "last week" }).DateRange(Now.Date));
     }
 
     [Fact]
     public void Spending_by_week_finds_the_most_expensive_week_and_what_drove_it()
     {
-        AssistantTools.Flow Spent(DateTime day, decimal amount, string category, string note) => new(day, Amiki.Domain.Finance.TxKind.Expense, amount, category, "Cash", note);
+        Transaction Spent(DateTime day, decimal amount, string category, string note) =>
+            new() { Date = day, Kind = TxKind.Expense, Amount = amount, Category = category, Note = note };
 
-        var result = AssistantTools.PerPeriod(
+        var result = SpendingByPeriodTool.PerPeriod(
         [
             Spent(new DateTime(2026, 9, 14), 80, "Food", "Lunch"),                 // week of Sep 14
             Spent(new DateTime(2026, 9, 23), 3000, "School", "Tuition installment"), // week of Sep 21
             Spent(new DateTime(2026, 9, 25), 120, "Food", "Milk tea"),
-            new(new DateTime(2026, 9, 26), Amiki.Domain.Finance.TxKind.Income, 1500, "Allowance", "Cash", "Baon"),
+            new() { Date = new DateTime(2026, 9, 26), Kind = TxKind.Income, Amount = 1500, Category = "Allowance", Note = "Baon" },
         ], byMonth: false);
 
         var top = result["most_spent"]!;
@@ -126,7 +129,7 @@ public class AssistantChatTests
     private const string CallsBalances = """{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"account_balances","args":{}},"thoughtSignature":"sig"}]}}]}""";
     private const string SaysDone = """{"candidates":[{"content":{"role":"model","parts":[{"text":"You have ₱5,089 in Cash."}]}}]}""";
 
-    private static readonly ToolDefinition Balances = new("account_balances", "balances", null, "money");
+    private static readonly ToolDefinition Balances = new("account_balances", "balances", null, AssistantArea.Money);
 
     [Fact]
     public async Task Runs_the_tool_she_asks_for_then_returns_her_answer()
@@ -138,7 +141,7 @@ public class AssistantChatTests
             (call, _) => { called.Add(call.Name); return Task.FromResult<JsonNode>(new JsonObject { ["Cash"] = 5089 }); },
             ThinkingLevels.Low, CancellationToken.None);
 
-        Assert.Equal("You have ₱5,089 in Cash.", reply);
+        Assert.Equal("You have ₱5,089 in Cash.", reply.Text);
         Assert.Equal(["account_balances"], called);
 
         var first = fake.Requests[0];
@@ -186,10 +189,10 @@ public class AssistantChatTests
 
         var reply = await model.ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
 
-        Assert.Equal("You have ₱5,089 in Cash.", reply);
+        Assert.Equal("You have ₱5,089 in Cash.", reply.Text);
         Assert.Equal(["big", "small"], fake.Models);
         Assert.DoesNotContain("thinkingConfig", fake.LastBody!); // the chat model's thinking setting isn't sent to the backup
-        Assert.StartsWith("answered by small: The free daily limit", model.LastNote);
+        Assert.StartsWith("answered by small: The free daily limit", reply.Note);
     }
 
     private sealed class LimitedThenOk : HttpMessageHandler
@@ -216,7 +219,7 @@ public class AssistantChatTests
         var reply = await new GeminiModel(new HttpClient(busy), Options.Create(new GeminiOptions { ApiKey = "k", Model = "m" }), new UserContext())
             .ChatAsync("rules", [], "hi", [], (_, _) => throw new ToolException("none"), "low", CancellationToken.None);
 
-        Assert.Equal("You have ₱5,089 in Cash.", reply);
+        Assert.Equal("You have ₱5,089 in Cash.", reply.Text);
         Assert.Equal(3, busy.Calls);
     }
 

@@ -8,6 +8,8 @@ public sealed class Idea : IEntity
     /// <summary>Done ideas leave the board this long after they're finished, into the archive.</summary>
     public static readonly TimeSpan ArchiveDoneAfter = TimeSpan.FromDays(14);
 
+    public const int MaxText = 5000;
+
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Text { get; set; } = "";
     public List<string> Tags { get; set; } = [];
@@ -85,7 +87,7 @@ public sealed class Idea : IEntity
 
     public string? Validate() =>
         string.IsNullOrWhiteSpace(Text) ? "An idea can't be empty."
-        : Text.Length > 5000 ? "Idea is too long (5000 characters max)."
+        : Text.Length > MaxText ? $"Idea is too long ({MaxText} characters max)."
         : null;
 
     private static bool IsTag(string token) => token.Length > 1 && token[0] == '#';

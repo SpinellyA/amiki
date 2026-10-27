@@ -122,7 +122,7 @@ public class NudgeTests
     [Fact]
     public async Task Remembering_is_a_suggestion_too()
     {
-        var proposals = new AssistantProposals(null!);
+        var proposals = Toolbox.Proposals();
 
         Assert.Contains(proposals.For(new AssistantSettings { SeeTasks = false, SeeMoney = false, SeeIdeas = false, SeeInbox = false }), t => t.Name == "propose_remember");
         Assert.Empty(proposals.For(new AssistantSettings { CanPropose = false }));

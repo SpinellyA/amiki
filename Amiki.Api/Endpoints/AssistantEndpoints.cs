@@ -30,8 +30,8 @@ public static class AssistantEndpoints
         group.MapPost("/chat", (ChatRequest request, AssistantChatService chat, ILanguageModel model, CancellationToken ct) =>
             Answer(model, request.Validate(), () => chat.ChatAsync(request, ct)));
 
-        group.MapGet("/preview", async (DateTime? now, AssistantChatService chat, CancellationToken ct) =>
-            Results.Ok(await chat.PreviewAsync(now ?? DateTime.Now, ct)));
+        group.MapGet("/preview", async (DateTime? now, AssistantChatService chat, TimeProvider time, CancellationToken ct) =>
+            Results.Ok(await chat.PreviewAsync(now ?? time.GetLocalNow().DateTime, ct)));
 
         group.MapPost("/test", (AssistantChatService chat, ILanguageModel model, CancellationToken ct) =>
             Answer(model, null, async () => new { reply = await chat.TestAsync(ct) }));

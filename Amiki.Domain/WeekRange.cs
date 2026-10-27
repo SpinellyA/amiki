@@ -1,8 +1,9 @@
-namespace Amiki.Components;
+namespace Amiki.Domain;
 
 /// <summary>
-/// A Monday-to-Sunday week. <see cref="End"/> is the next Monday (not included). Shared by the
-/// weekly review and Money's week view.
+/// A Monday-to-Sunday week. <see cref="End"/> is the next Monday (not included). Used by the
+/// weekly review, Money's week view and Amiki's nudges. On the server, use <see cref="Of"/> with
+/// the server's clock, never <see cref="Current"/> (that's the device's today).
 /// </summary>
 public readonly record struct WeekRange(DateTime Start)
 {

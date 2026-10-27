@@ -6,6 +6,9 @@ public enum Priority { None, Low, Medium, High }
 
 public sealed class TaskItem : IEntity
 {
+    public const int MaxTitle = 500;
+    public const int MaxNotes = 5000;
+
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public string? Notes { get; set; }
@@ -28,7 +31,7 @@ public sealed class TaskItem : IEntity
 
     public string? Validate() =>
         string.IsNullOrWhiteSpace(Title) ? "A task needs a title."
-        : Title.Length > 500 ? "Title is too long (500 characters max)."
-        : Notes?.Length > 5000 ? "Notes are too long (5000 characters max)."
+        : Title.Length > MaxTitle ? $"Title is too long ({MaxTitle} characters max)."
+        : Notes?.Length > MaxNotes ? $"Notes are too long ({MaxNotes} characters max)."
         : null;
 }

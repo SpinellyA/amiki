@@ -3,9 +3,8 @@ using Amiki.Data;
 namespace Amiki.Modules.Finance;
 
 /// <summary>
-/// Balances are never stored: each account's balance is its opening balance plus every
-/// transaction and transfer touching it, so editing or deleting an old entry can't leave a
-/// stale total.
+/// Your money on this device: accounts, transactions, transfers and balance checks, kept in sync
+/// with the server. Balances and flows are worked out by the shared <see cref="Ledger"/>.
 /// </summary>
 public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
 {
@@ -27,13 +26,12 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
     public IEnumerable<(string Path, object Data)> Snapshot() =>
         [("accounts", Accounts), (TransactionsPath, _items), (TransfersPath, _transfers), (ChecksPath, _checks)];
 
-    public decimal Balance(string account) =>
-        (Accounts.FirstOrDefault(a => a.Name == account)?.OpeningBalance ?? 0)
-        + _items.Where(t => t.Account == account).Sum(t => t.Signed)
-        + _transfers.Where(t => t.To == account).Sum(t => t.Amount)
-        - _transfers.Where(t => t.From == account).Sum(t => t.TotalOut);
+    // The money rules themselves live in Domain (shared with Amiki's lookups on the server).
+    private Ledger Ledger => new(Accounts, _items, _transfers);
 
-    public decimal TotalBalance => Accounts.Sum(a => Balance(a.Name));
+    public decimal Balance(string account) => Ledger.Balance(account);
+
+    public decimal TotalBalance => Ledger.TotalBalance;
 
     public IEnumerable<Transaction> In(MoneyPeriod period) => _items.Where(t => period.Contains(t.Date));
 
@@ -43,19 +41,8 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
 
     public IEnumerable<Transaction> FlowsInMonth(DateTime month) => FlowsIn(MoneyPeriod.Containing(PeriodLength.Month, month));
 
-    /// <summary>
-    /// Real money in and out for totals and charts, from <paramref name="start"/> up to (not
-    /// including) <paramref name="end"/>: transactions minus balance corrections, plus transfer
-    /// fees as spending. Moving money between your own accounts isn't spending, so the transfers
-    /// themselves don't appear.
-    /// </summary>
-    public IEnumerable<Transaction> FlowsBetween(DateTime start, DateTime end) =>
-        _items.Where(t => t.Date >= start && t.Date < end && !Category.IsCorrection(t.Category))
-            .Concat(_transfers.Where(t => t.Date >= start && t.Date < end && t.Fee > 0).Select(t => new Transaction
-            {
-                Id = t.Id, Date = t.Date, Amount = t.Fee, Kind = TxKind.Expense, Category = Category.Fees,
-                Account = t.From, Note = $"Fee: {t.From} → {t.To}", CreatedAt = t.CreatedAt,
-            }));
+    /// <summary>Real money in and out for totals and charts (see <see cref="Ledger.FlowsBetween"/>).</summary>
+    public IEnumerable<Transaction> FlowsBetween(DateTime start, DateTime end) => Ledger.FlowsBetween(start, end);
 
     public BalanceCheck? LastCheck(string account) =>
         _checks.Where(c => c.Account == account).MaxBy(c => c.CheckedAt);

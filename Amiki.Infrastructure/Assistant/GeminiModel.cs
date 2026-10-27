@@ -28,8 +28,6 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
 
     public bool IsEnabled => !string.IsNullOrWhiteSpace(ApiKey);
 
-    public string? LastNote { get; private set; }
-
     public async Task<string> AskForJsonAsync(string instructions, string input, JsonObject schema, CancellationToken ct)
     {
         var body = Request(instructions, new JsonArray(UserText(input)));
@@ -51,7 +49,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
         return Text(content) ?? throw new LanguageModelException("Gemini sent back an empty answer.");
     }
 
-    public async Task<string> ChatAsync(
+    public async Task<ModelReply> ChatAsync(
         string instructions, IReadOnlyList<ChatLine> history, string message, IReadOnlyList<ToolDefinition> tools,
         Func<ToolCall, CancellationToken, Task<JsonNode>> runTool, string? thinking, CancellationToken ct)
     {
@@ -71,7 +69,7 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
         if (tools.Count > 0) body["tools"] = new JsonArray(new JsonObject { ["functionDeclarations"] = Declarations(tools) });
 
         var model = options.Value.Model;
-        LastNote = null;
+        string? note = null;
         for (var round = 0; ; round++)
         {
             JsonObject content;
@@ -85,14 +83,14 @@ public sealed class GeminiModel(HttpClient http, IOptions<GeminiOptions> options
                 // (Thinking settings are for the chat model, so they're left out.)
                 model = options.Value.LightModel;
                 (body["generationConfig"] as JsonObject)?.Remove("thinkingConfig");
-                LastNote = $"answered by {model}: {ex.Message}";
+                note = $"answered by {model}: {ex.Message}";
                 content = await SendAsync(model, body, ct);
             }
             var calls = content["parts"]?.AsArray()
                 .Select(p => p?["functionCall"])
                 .OfType<JsonObject>()
                 .ToList() ?? [];
-            if (calls.Count == 0) return Text(content) ?? throw new LanguageModelException("Gemini sent back an empty answer.");
+            if (calls.Count == 0) return new ModelReply(Text(content) ?? throw new LanguageModelException("Gemini sent back an empty answer."), note);
             if (round >= MaxToolRounds) throw new LanguageModelException("Amiki got stuck looking things up. Try asking more simply.");
 
             // Her turn goes back exactly as she sent it (it can carry signatures Gemini checks), then the results.

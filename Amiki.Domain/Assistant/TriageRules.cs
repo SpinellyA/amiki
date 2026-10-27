@@ -24,10 +24,10 @@ public static class TriageRules
             TriageKind.Task => cleaned with
             {
                 Due = raw.Due?.Date,
-                Project = Project(raw.Project),
+                Project = Tags.Clean(raw.Project),
                 Amount = null, Category = null, Account = null,
             },
-            TriageKind.Idea => Bare(cleaned) with { Project = Project(raw.Project) },
+            TriageKind.Idea => Bare(cleaned) with { Project = Tags.Clean(raw.Project) },
             _ => Bare(cleaned) with { Kind = TriageKind.Unsure },
         };
     }
@@ -42,23 +42,12 @@ public static class TriageRules
         return s with
         {
             Amount = Math.Round(s.Amount.Value, 2),
-            Category = Match(s.Category, categories) ?? fallback,
-            Account = Match(s.Account, context.Accounts) ?? Match("Cash", context.Accounts) ?? context.Accounts.FirstOrDefault(),
+            Category = KnownNames.Match(s.Category, categories) ?? fallback,
+            Account = KnownNames.Match(s.Account, context.Accounts) ?? KnownNames.Match("Cash", context.Accounts) ?? context.Accounts.FirstOrDefault(),
             Due = null, Project = null, Priority = Priority.None,
         };
     }
 
     private static TriageSuggestion Bare(TriageSuggestion s) =>
         s with { Due = null, Project = null, Priority = Priority.None, Amount = null, Category = null, Account = null };
-
-    // The real name, matched without caring about case ("gcash" → "GCash"), or null if there's no such thing.
-    private static string? Match(string? value, IEnumerable<string> known) =>
-        value is null ? null : known.FirstOrDefault(k => string.Equals(k, value.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    // Projects are lowercase tags without the '#', like the task quick-add uses.
-    private static string? Project(string? value)
-    {
-        var tag = value?.Trim().TrimStart('#').ToLowerInvariant();
-        return string.IsNullOrEmpty(tag) || tag.Contains(' ') ? null : tag;
-    }
 }

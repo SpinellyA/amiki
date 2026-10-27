@@ -6,6 +6,8 @@ public enum TxKind { Expense, Income }
 
 public sealed class Transaction : IEntity
 {
+    public const int MaxNote = 500;
+
     public Guid Id { get; init; } = Guid.NewGuid();
     public DateTime Date { get; set; } = DateTime.Today;
     /// <summary>Always positive; <see cref="Kind"/> carries the direction.</summary>
@@ -24,7 +26,7 @@ public sealed class Transaction : IEntity
         Amount <= 0 ? "Amount must be more than zero."
         : string.IsNullOrWhiteSpace(Category) ? "Pick a category."
         : string.IsNullOrWhiteSpace(Account) ? "Pick an account."
-        : Note.Length > 500 ? "Note is too long (500 characters max)."
+        : Note.Length > MaxNote ? $"Note is too long ({MaxNote} characters max)."
         : null;
 
     public string Describe() =>

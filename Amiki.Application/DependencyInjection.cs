@@ -1,4 +1,7 @@
 using Amiki.Application.Assistant;
+using Amiki.Application.Assistant.Tools;
+using Amiki.Application.Assistant.Tools.Lookups;
+using Amiki.Application.Assistant.Tools.Proposals;
 using Amiki.Application.Auditing;
 using Amiki.Application.Diary;
 using Amiki.Application.Entities;
@@ -35,11 +38,32 @@ public static class DependencyInjection
         services.AddScoped<MyAccountService>();
         services.AddScoped<SignInService>();
 
+        services.AddScoped<MoneyBook>();
+
         services.AddScoped<InboxTriageService>();
-        services.AddScoped<AssistantTools>();
-        services.AddScoped<AssistantProposals>();
-        services.AddScoped<BriefingService>();
         services.AddScoped<AssistantChatService>();
+        services.AddScoped<BriefingService>();
+        services.AddSingleton<BriefingGate>();
+
+        // What Amiki can look up. Add a lookup: write an ILookupTool and list it here.
+        services.AddScoped<AssistantTools>();
+        services.AddScoped<ILookupTool, ListTasksTool>();
+        services.AddScoped<ILookupTool, ListIdeasTool>();
+        services.AddScoped<ILookupTool, AccountBalancesTool>();
+        services.AddScoped<ILookupTool, MoneySummaryTool>();
+        services.AddScoped<ILookupTool, SpendingByPeriodTool>();
+        services.AddScoped<ILookupTool, ListTransactionsTool>();
+        services.AddScoped<ILookupTool, ListInboxTool>();
+        services.AddScoped<ILookupTool, WeeklyNotesTool>();
+
+        // What she can suggest. Add one: write an IProposalTool and list it here.
+        services.AddScoped<AssistantProposals>();
+        services.AddScoped<IProposalTool, ProposeAddTask>();
+        services.AddScoped<IProposalTool, ProposeCompleteTask>();
+        services.AddScoped<IProposalTool, ProposeLogMoney>();
+        services.AddScoped<IProposalTool, ProposeAddIdea>();
+        services.AddScoped<IProposalTool, ProposeInboxNote>();
+        services.AddScoped<IProposalTool, ProposeRemember>();
         return services;
     }
 }

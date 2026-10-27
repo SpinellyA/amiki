@@ -1,6 +1,6 @@
-using Amiki.Contracts.Assistant;
-using Amiki.Application.People;
 using Amiki.Application.Data;
+using Amiki.Application.People;
+using Amiki.Contracts.Assistant;
 using Amiki.Domain.Assistant;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,18 +24,17 @@ public sealed class AssistantChatService(IAmikiDb db, ILanguageModel model, Assi
         var reply = await model.ChatAsync(AssistantPrompt.Build(settings, request.Now, allowed), history, request.Message.Trim(), allowed,
             async (call, token) =>
             {
-                if (allowed.All(t => t.Name != call.Name)) throw new ToolException($"There's no tool called {call.Name} available.");
-                if (call.Name.StartsWith(AssistantProposals.Prefix, StringComparison.Ordinal))
+                var tool = allowed.FirstOrDefault(t => t.Name == call.Name) ?? throw new ToolException($"There's no tool called {call.Name} available.");
+                if (tool.IsProposal)
                 {
                     var proposal = await proposals.ProposeAsync(call, today, token);
                     proposed.Add(proposal);
                     return AssistantProposals.Result(proposal);
                 }
-                var area = allowed.First(t => t.Name == call.Name).Area;
-                if (!looked.Contains(area)) looked.Add(area);
+                if (!looked.Contains(tool.AreaName)) looked.Add(tool.AreaName);
                 return await tools.RunAsync(call, allowed, today, token);
             }, settings.Thinking, ct);
-        return new ChatReply(reply, looked, proposed, model.LastNote);
+        return new ChatReply(reply.Text, looked, proposed, reply.Note);
     }
 
     public async Task<ContextPreview> PreviewAsync(DateTime now, CancellationToken ct)
@@ -47,13 +46,15 @@ public sealed class AssistantChatService(IAmikiDb db, ILanguageModel model, Assi
     }
 
     /// <summary>A tiny call to check the key and model work.</summary>
-    public Task<string> TestAsync(CancellationToken ct) =>
-        model.ChatAsync("You are Amiki, a friendly assistant.", [], "Say hi to me in under ten words.", [], (_, _) => throw new ToolException("No tools."), ThinkingLevels.Low, ct);
+    public async Task<string> TestAsync(CancellationToken ct) =>
+        (await model.ChatAsync("You are Amiki, a friendly assistant.", [], "Say hi to me in under ten words.", [],
+            (_, _) => throw new ToolException("No tools."), ThinkingLevels.Low, ct)).Text;
 
     // Only the owner edits what she knows about someone, so "remember this" is the owner's alone.
-    private IReadOnlyList<ToolDefinition> Allowed(AssistantSettings settings) => [.. tools.For(settings), .. proposals.For(settings, canRemember: user.IsOwner)];
+    private IReadOnlyList<ToolDefinition> Allowed(AssistantSettings settings) =>
+        [.. tools.For(settings), .. proposals.For(settings, canRemember: user.IsOwner)];
 
-    // Saved settings, or the defaults if you haven't changed anything yet.
+    // Saved settings, or the defaults if nothing was changed yet.
     private async Task<AssistantSettings> SettingsAsync(CancellationToken ct) =>
         await db.AssistantSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new AssistantSettings();
 }

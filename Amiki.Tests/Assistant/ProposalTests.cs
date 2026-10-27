@@ -12,18 +12,18 @@ public class ProposalTests
     [Fact]
     public void Suggesting_follows_the_switches()
     {
-        var proposals = new AssistantProposals(null!);
+        var proposals = Toolbox.Proposals();
 
         Assert.Equal(["propose_add_task", "propose_complete_task", "propose_log_money", "propose_add_idea", "propose_inbox_note", "propose_remember"],
             proposals.For(new AssistantSettings()).Select(t => t.Name));
         Assert.Empty(proposals.For(new AssistantSettings { CanPropose = false }));
-        Assert.DoesNotContain(proposals.For(new AssistantSettings { SeeMoney = false }), t => t.Area == "money");
+        Assert.DoesNotContain(proposals.For(new AssistantSettings { SeeMoney = false }), t => t.Area == AssistantArea.Money);
     }
 
     [Fact]
     public async Task A_task_suggestion_defaults_to_today_and_tidies_the_project()
     {
-        var proposals = new AssistantProposals(null!);
+        var proposals = Toolbox.Proposals();
 
         var p = await proposals.ProposeAsync(new ToolCall("propose_add_task",
             new() { ["title"] = "Quiz ch 5-6", ["project"] = "#CMSC125", ["priority"] = "high" }), Today, CancellationToken.None);
@@ -35,7 +35,7 @@ public class ProposalTests
     [Fact]
     public async Task Bad_arguments_go_back_to_her_as_tool_errors()
     {
-        var proposals = new AssistantProposals(null!);
+        var proposals = Toolbox.Proposals();
 
         await Assert.ThrowsAsync<ToolException>(() => proposals.ProposeAsync(new ToolCall("propose_add_task", []), Today, CancellationToken.None));
         await Assert.ThrowsAsync<ToolException>(() => proposals.ProposeAsync(
@@ -70,10 +70,10 @@ public class ProposalTests
     public void Her_instructions_say_suggestions_wait_for_confirmation()
     {
         var settings = new AssistantSettings();
-        var allowed = new[] { new AssistantTools(null!).For(settings), new AssistantProposals(null!).For(settings) }.SelectMany(t => t).ToList();
+        var allowed = new[] { Toolbox.Lookups().For(settings), Toolbox.Proposals().For(settings) }.SelectMany(t => t).ToList();
 
         var withSuggestions = AssistantPrompt.Build(settings, Today, allowed);
-        var without = AssistantPrompt.Build(settings, Today, new AssistantTools(null!).For(settings));
+        var without = AssistantPrompt.Build(settings, Today, Toolbox.Lookups().For(settings));
 
         Assert.Contains("it has NOT happened until they tap 'Do it'", withSuggestions);
         Assert.Contains("You can't change anything", without);

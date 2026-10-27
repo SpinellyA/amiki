@@ -8,12 +8,14 @@ namespace Amiki.Domain.Inbox;
 /// </summary>
 public sealed class InboxItem : IEntity
 {
+    public const int MaxText = 2000;
+
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Text { get; init; } = "";
     public DateTime CapturedAt { get; init; } = DateTime.Now;
 
     public string? Validate() =>
         string.IsNullOrWhiteSpace(Text) ? "Can't save an empty note."
-        : Text.Length > 2000 ? "Note is too long (2000 characters max)."
+        : Text.Length > MaxText ? $"Note is too long ({MaxText} characters max)."
         : null;
 }

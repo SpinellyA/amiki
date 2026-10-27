@@ -1,9 +1,9 @@
 using Amiki.Contracts.Assistant;
 using Amiki.Application.People;
 using Amiki.Application.Data;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
+using Amiki.Domain;
 using Amiki.Domain.Assistant;
 using Amiki.Domain.Finance;
 using Amiki.Domain.Ideas;
@@ -16,16 +16,8 @@ namespace Amiki.Application.Assistant;
 /// written by the model once a day and saved. Only areas she's allowed to see go in; never the
 /// diary. If the model is off or busy, the nudges still show.
 /// </summary>
-public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentUser user)
+public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentUser user, BriefingGate gate)
 {
-    // One note written at a time: when the phone and PC open the dashboard together, the second
-    // waits and gets the first one's note instead of asking the model again.
-    private static readonly SemaphoreSlim Writing = new(1, 1);
-
-    // After hitting the free tier's limit, don't ask again on every dashboard load for a while.
-    private static readonly TimeSpan PauseAfterLimit = TimeSpan.FromMinutes(10);
-    private static readonly ConcurrentDictionary<Guid, DateTime> QuietUntil = new(); // per person: each has their own key
-
     public async Task<Briefing> GetAsync(DateTime now, bool rewrite, CancellationToken ct)
     {
         var settings = await db.AssistantSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new AssistantSettings();
@@ -38,10 +30,10 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
         if (saved is not null && !rewrite) return new Briefing(saved.Text, saved.WrittenAt, nudges);
         // Viewing someone else's Amiki is look-only: their saved note if there is one, never a new one.
         if (user.IsViewingSomeoneElse) return new Briefing(saved?.Text, saved?.WrittenAt, nudges);
-        if (DateTime.UtcNow < QuietUntil.GetValueOrDefault(user.DataUserId))
+        if (gate.IsPaused(user.DataUserId))
             return new Briefing(saved?.Text, saved?.WrittenAt, nudges, "Gemini's free-tier limit was reached; she'll write it in a few minutes.");
 
-        await Writing.WaitAsync(ct);
+        using var turn = await gate.WaitToWriteAsync(user.DataUserId, ct);
         try
         {
             if (!rewrite && await SavedAsync(now, ct) is { } justWritten) return new Briefing(justWritten.Text, justWritten.WrittenAt, nudges);
@@ -52,12 +44,8 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
         }
         catch (LanguageModelException ex)
         {
-            if (ex.RateLimited) QuietUntil[user.DataUserId] = DateTime.UtcNow + PauseAfterLimit;
+            if (ex.RateLimited) gate.PauseAfterRateLimit(user.DataUserId);
             return new Briefing(saved?.Text, saved?.WrittenAt, nudges, ex.Message);
-        }
-        finally
-        {
-            Writing.Release();
         }
     }
 
@@ -100,7 +88,7 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
         }
         if (d.SeeMoney)
         {
-            var weekStart = d.Today.Date.AddDays(-(((int)d.Today.DayOfWeek + 6) % 7));
+            var weekStart = WeekRange.Of(d.Today).Start;
             s.AppendLine($"- Spent so far this week: ₱{d.SpendingByDay.Where(x => x.Day >= weekStart).Sum(x => x.Amount):#,0}.");
         }
         foreach (var nudge in nudges) s.AppendLine($"- {nudge.Text}");

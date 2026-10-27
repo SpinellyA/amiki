@@ -41,6 +41,18 @@ public sealed class AssistantSettings : IEntity
 
     public AssistantSettings Clone() => (AssistantSettings)MemberwiseClone();
 
+    /// <summary>Whether she may look at (or suggest changes in) that part of your data.</summary>
+    public bool CanSee(AssistantArea area) => area switch
+    {
+        AssistantArea.Tasks => SeeTasks,
+        AssistantArea.Ideas => SeeIdeas,
+        AssistantArea.Money => SeeMoney,
+        AssistantArea.Inbox => SeeInbox,
+        AssistantArea.WeeklyNotes => SeeWeeklyNotes,
+        AssistantArea.Memory => true,
+        _ => false,
+    };
+
     /// <summary>
     /// For people the owner added: what she knows about them and her personality are the owner's
     /// to set, so a save from them keeps whatever is stored (the rest of the settings are theirs).

@@ -101,7 +101,7 @@ public class PeopleRulesTests
     [Fact]
     public void Remember_this_is_only_offered_to_the_owner()
     {
-        var proposals = new AssistantProposals(null!);
+        var proposals = Assistant.Toolbox.Proposals();
         Assert.Contains(proposals.For(new AssistantSettings()), t => t.Name == "propose_remember");
         Assert.DoesNotContain(proposals.For(new AssistantSettings(), canRemember: false), t => t.Name == "propose_remember");
     }

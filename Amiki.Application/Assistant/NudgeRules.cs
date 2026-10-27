@@ -1,3 +1,4 @@
+using Amiki.Domain;
 using System.Globalization;
 using Amiki.Domain.Assistant;
 
@@ -32,7 +33,7 @@ public static class NudgeRules
 
         if (d.SeeWeeklyNotes)
         {
-            var thisWeek = WeekOf(today);
+            var thisWeek = WeekRange.Of(today).Start;
             if (today.DayOfWeek == DayOfWeek.Sunday && !d.ReviewedWeeks.Contains(thisWeek))
                 nudges.Add(new("review", "It's Sunday: a few minutes on your weekly review?", "review"));
             else if (today.DayOfWeek == DayOfWeek.Monday && !d.ReviewedWeeks.Contains(thisWeek.AddDays(-7)))
@@ -69,7 +70,7 @@ public static class NudgeRules
     /// </summary>
     internal static IEnumerable<Nudge> Spending(IReadOnlyList<(DateTime Day, string Category, decimal Amount)> spending, DateTime today)
     {
-        var thisWeek = WeekOf(today);
+        var thisWeek = WeekRange.Of(today).Start;
         var before = thisWeek.AddDays(-28);
         return spending
             .GroupBy(s => s.Category)
@@ -86,8 +87,6 @@ public static class NudgeRules
                     : $"{c.Category}: {Peso(c.Now)} this week, usually about {Peso(c.Usual)}.",
                 "money"));
     }
-
-    private static DateTime WeekOf(DateTime day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
     private static string Count(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";
 
