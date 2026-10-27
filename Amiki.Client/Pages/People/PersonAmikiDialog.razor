@@ -1,5 +1,5 @@
 @* The owner sets up someone's Amiki: their Gemini key, what she knows about them, how she talks. They can't change the last two. *@
-@using Amiki.Modules.People
+@using Amiki.Contracts.People
 @inject PeopleClient People
 
 <MudDialog>
@@ -54,8 +54,8 @@
 
     private string KeyLine => Person.KeySetBy switch
     {
-        "self" => "They added their own key.",
-        "owner" => "You added a key for them.",
+        KeySource.Self => "They added their own key.",
+        KeySource.Owner => "You added a key for them.",
         _ => "None yet, so their Amiki is off. Free keys come from Google AI Studio.",
     };
 

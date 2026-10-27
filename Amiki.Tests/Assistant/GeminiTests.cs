@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json.Nodes;
-using Amiki.Api.Assistant;
+using Amiki.Application.Assistant;
+using Amiki.Infrastructure.Assistant;
 using Amiki.Api.Users;
+using Amiki.Application.People;
 using Amiki.Modules.Assistant;
 using Amiki.Modules.Tasks;
 using Microsoft.Extensions.Options;

@@ -1,0 +1,60 @@
+using Amiki.Domain;
+
+namespace Amiki.Domain.Assistant;
+
+/// <summary>
+/// What Amiki may look at and what she knows about you. One set, shared by every device.
+/// There's deliberately no switch for the diary: she can never see it.
+/// </summary>
+public sealed class AssistantSettings : IEntity
+{
+    /// <summary>There's only ever one; this is its id.</summary>
+    public static readonly Guid SingleId = Guid.Parse("a5515700-0000-4000-8000-000000000001");
+
+    public const int MaxAboutMe = 2000;
+    public const int MaxPersonality = 500;
+
+    public Guid Id { get; init; } = SingleId;
+
+    /// <summary>A few lines she always knows: your name, school, what you're working on, how you like answers.</summary>
+    public string AboutMe { get; set; } = "";
+
+    /// <summary>How she talks. Empty means friendly, short and to the point.</summary>
+    public string Personality { get; set; } = "";
+
+    public bool SeeTasks { get; set; } = true;
+    public bool SeeIdeas { get; set; } = true;
+    public bool SeeMoney { get; set; } = true;
+    public bool SeeInbox { get; set; } = true;
+    public bool SeeWeeklyNotes { get; set; } = true;
+
+    /// <summary>
+    /// Whether she may suggest changes (add a task, log an expense…) for you to confirm. Only for
+    /// areas she can see; she can never change anything on her own.
+    /// </summary>
+    public bool CanPropose { get; set; } = true;
+
+    /// <summary>How hard she thinks before replying in chat (<see cref="ThinkingLevels"/>). Quick by default.</summary>
+    public string Thinking { get; set; } = ThinkingLevels.Low;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    public AssistantSettings Clone() => (AssistantSettings)MemberwiseClone();
+
+    /// <summary>
+    /// For people the owner added: what she knows about them and her personality are the owner's
+    /// to set, so a save from them keeps whatever is stored (the rest of the settings are theirs).
+    /// </summary>
+    public static void KeepOwnersWords(AssistantSettings? stored, AssistantSettings incoming)
+    {
+        incoming.AboutMe = stored?.AboutMe ?? "";
+        incoming.Personality = stored?.Personality ?? "";
+    }
+
+    public string? Validate() =>
+        Id != SingleId ? "There's only one set of assistant settings."
+        : AboutMe.Length > MaxAboutMe ? $"\"About me\" is too long ({MaxAboutMe} characters max)."
+        : Personality.Length > MaxPersonality ? $"Personality is too long ({MaxPersonality} characters max)."
+        : !ThinkingLevels.IsKnown(Thinking) ? "Pick a thinking level from the list."
+        : null;
+}

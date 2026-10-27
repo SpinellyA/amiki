@@ -1,4 +1,5 @@
-using Amiki.Api.Assistant;
+using Amiki.Application.Assistant;
+using Amiki.Infrastructure.Assistant;
 using Amiki.Modules.Assistant;
 
 namespace Amiki.Tests.Assistant;

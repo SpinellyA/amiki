@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Amiki.Modules.People;
+using Amiki.Contracts.People;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 

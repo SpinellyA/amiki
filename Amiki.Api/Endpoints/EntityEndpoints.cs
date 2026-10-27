@@ -1,87 +1,26 @@
-using Amiki.Api.Data;
-using Amiki.Api.Users;
-using Amiki.Core;
-using Microsoft.EntityFrameworkCore;
+using Amiki.Application.Entities;
+using Amiki.Domain;
 
 namespace Amiki.Api.Endpoints;
 
 /// <summary>
-/// The same three endpoints for every module's items:
-///   GET    /api/{path}        everything (one person's data is small; the client filters)
+/// The same three endpoints for every kind of item. Its rules live in Application
+/// (<see cref="EntityRules{T}"/>), so this stays plain HTTP:
+///   GET    /api/{path}        everything (one person's data is small; the app filters)
 ///   PUT    /api/{path}/{id}   create or replace. Safe to retry: same id, same result.
 ///   DELETE /api/{path}/{id}   remove. Deleting something already gone still succeeds.
 /// </summary>
 public static class EntityEndpoints
 {
-    /// <param name="checkReplace">Rules comparing the stored item with the incoming one (409 when broken).</param>
-    /// <param name="checkAsync">Rules that need the database, e.g. "that account exists" (400 when broken).</param>
-    /// <param name="describe">When set, every real change is written to the audit log in the same save.</param>
-    /// <param name="checkDelete">Rules for removing a stored item, e.g. "nothing still uses it" (409 when broken).</param>
-    /// <param name="fromMember">Adjusts a save from someone other than the owner (stored item, incoming one).</param>
-    /// <param name="privateFromOwner">Never shown when the owner is viewing someone's Amiki (the diary).</param>
-    public static RouteGroupBuilder MapEntity<T>(
-        this RouteGroupBuilder api,
-        string path,
-        Func<AmikiDb, DbSet<T>> set,
-        Func<T, T, string?>? checkReplace = null,
-        Func<AmikiDb, T, CancellationToken, Task<string?>>? checkAsync = null,
-        Func<T, string>? describe = null,
-        Func<AmikiDb, T, CancellationToken, Task<string?>>? checkDelete = null,
-        Action<T?, T>? fromMember = null,
-        bool privateFromOwner = false)
-        where T : class, IEntity
+    public static RouteGroupBuilder MapEntity<T>(this RouteGroupBuilder api, string path) where T : class, IEntity
     {
         var group = api.MapGroup($"/{path}").WithTags(path);
 
-        group.MapGet("/", async (AmikiDb db, UserContext user, CancellationToken ct) =>
-            privateFromOwner && user.IsViewingSomeoneElse
-                ? Results.Ok(Array.Empty<T>())
-                : Results.Ok(await set(db).AsNoTracking().ToListAsync(ct)));
-
-        group.MapPut("/{id:guid}", async (Guid id, T body, AmikiDb db, UserContext user, CancellationToken ct) =>
-        {
-            if (body.Id != id) return Results.Problem("The id in the URL and the body don't match.", statusCode: 400);
-            if (body.Validate() is { } problem) return Results.Problem(problem, statusCode: 400);
-            if (checkAsync is not null && await checkAsync(db, body, ct) is { } dbProblem) return Results.Problem(dbProblem, statusCode: 400);
-
-            var stored = await set(db).FirstOrDefaultAsync(e => e.Id == id, ct);
-            if (!user.IsOwner) fromMember?.Invoke(stored, body);
-            var before = stored is null || describe is null ? null : Audit.Serialize(stored);
-            if (stored is null)
-            {
-                set(db).Add(body);
-            }
-            else
-            {
-                if (checkReplace?.Invoke(stored, body) is { } conflict) return Results.Problem(conflict, statusCode: 409);
-                db.Entry(stored).CurrentValues.SetValues(body);
-            }
-
-            if (describe is not null)
-            {
-                var after = Audit.Serialize(body);
-                // A retried save of the same content isn't a change, so it isn't logged twice.
-                if (Audit.HasChanges(before, after))
-                    db.AuditLog.Add(Audit.Entry(path, id, stored is null ? "created" : "edited", describe(body), before, after));
-            }
-
-            await db.SaveChangesAsync(ct);
-            return Results.NoContent();
-        });
-
-        group.MapDelete("/{id:guid}", async (Guid id, AmikiDb db, CancellationToken ct) =>
-        {
-            if (await set(db).FirstOrDefaultAsync(e => e.Id == id, ct) is { } stored)
-            {
-                if (checkDelete is not null && await checkDelete(db, stored, ct) is { } conflict)
-                    return Results.Problem(conflict, statusCode: 409);
-                if (describe is not null)
-                    db.AuditLog.Add(Audit.Entry(path, id, "deleted", describe(stored), Audit.Serialize(stored), null));
-                set(db).Remove(stored);
-                await db.SaveChangesAsync(ct);
-            }
-            return Results.NoContent();
-        });
+        group.MapGet("/", async (EntityService<T> items, CancellationToken ct) => Results.Ok(await items.ListAsync(ct)));
+        group.MapPut("/{id:guid}", async (Guid id, T body, EntityService<T> items, CancellationToken ct) =>
+            (await items.SaveAsync(id, body, ct)).ToHttp());
+        group.MapDelete("/{id:guid}", async (Guid id, EntityService<T> items, CancellationToken ct) =>
+            (await items.DeleteAsync(id, ct)).ToHttp());
 
         return group;
     }

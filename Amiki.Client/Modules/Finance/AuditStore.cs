@@ -1,4 +1,4 @@
-using Amiki.Core;
+using Amiki.Domain;
 using Amiki.Data;
 
 namespace Amiki.Modules.Finance;

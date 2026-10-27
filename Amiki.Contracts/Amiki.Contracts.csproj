@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- What crosses the wire between the app and the API. Shared by both. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Amiki.Domain\Amiki.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Amiki.Domain" />
+    <Using Include="Amiki.Domain.Assistant" />
+    <Using Include="Amiki.Domain.Diary" />
+    <Using Include="Amiki.Domain.Finance" />
+    <Using Include="Amiki.Domain.Ideas" />
+    <Using Include="Amiki.Domain.Inbox" />
+    <Using Include="Amiki.Domain.People" />
+    <Using Include="Amiki.Domain.Review" />
+    <Using Include="Amiki.Domain.Tasks" />
+  </ItemGroup>
+
+</Project>

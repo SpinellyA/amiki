@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -18,12 +18,27 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Amiki.Domain" />
+    <Using Include="Amiki.Domain.Assistant" />
+    <Using Include="Amiki.Domain.Diary" />
+    <Using Include="Amiki.Domain.Finance" />
+    <Using Include="Amiki.Domain.Ideas" />
+    <Using Include="Amiki.Domain.Inbox" />
+    <Using Include="Amiki.Domain.People" />
+    <Using Include="Amiki.Domain.Review" />
+    <Using Include="Amiki.Domain.Tasks" />
+    <Using Include="Amiki.Contracts" />
+    <Using Include="Amiki.Contracts.Assistant" />
+    <Using Include="Amiki.Contracts.People" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Amiki.Core\Amiki.Core.csproj" />
+    <ProjectReference Include="..\Amiki.Domain\Amiki.Domain.csproj" />
+    <ProjectReference Include="..\Amiki.Contracts\Amiki.Contracts.csproj" />
     <ProjectReference Include="..\Amiki.Client\Amiki.Client.csproj" />
     <ProjectReference Include="..\Amiki.Api\Amiki.Api.csproj" />
+    <ProjectReference Include="..\Amiki.Application\Amiki.Application.csproj" />
+    <ProjectReference Include="..\Amiki.Infrastructure\Amiki.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

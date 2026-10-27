@@ -5,7 +5,10 @@ WORKDIR /src
 
 # Restore first, from project files only, so code changes don't re-download packages.
 COPY Amiki.sln ./
-COPY Amiki.Core/Amiki.Core.csproj Amiki.Core/
+COPY Amiki.Domain/Amiki.Domain.csproj Amiki.Domain/
+COPY Amiki.Contracts/Amiki.Contracts.csproj Amiki.Contracts/
+COPY Amiki.Application/Amiki.Application.csproj Amiki.Application/
+COPY Amiki.Infrastructure/Amiki.Infrastructure.csproj Amiki.Infrastructure/
 COPY Amiki.Client/Amiki.Client.csproj Amiki.Client/
 COPY Amiki.Api/Amiki.Api.csproj Amiki.Api/
 RUN dotnet restore Amiki.Api/Amiki.Api.csproj

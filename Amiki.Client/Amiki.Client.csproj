@@ -21,7 +21,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Amiki.Core\Amiki.Core.csproj" />
+    <ProjectReference Include="..\Amiki.Domain\Amiki.Domain.csproj" />
+    <ProjectReference Include="..\Amiki.Contracts\Amiki.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- The shared domain and wire types, used all over the app. -->
+  <ItemGroup>
+    <Using Include="Amiki.Domain" />
+    <Using Include="Amiki.Domain.Assistant" />
+    <Using Include="Amiki.Domain.Diary" />
+    <Using Include="Amiki.Domain.Finance" />
+    <Using Include="Amiki.Domain.Ideas" />
+    <Using Include="Amiki.Domain.Inbox" />
+    <Using Include="Amiki.Domain.People" />
+    <Using Include="Amiki.Domain.Review" />
+    <Using Include="Amiki.Domain.Tasks" />
+    <Using Include="Amiki.Contracts" />
+    <Using Include="Amiki.Contracts.Assistant" />
+    <Using Include="Amiki.Contracts.People" />
   </ItemGroup>
 
 </Project>

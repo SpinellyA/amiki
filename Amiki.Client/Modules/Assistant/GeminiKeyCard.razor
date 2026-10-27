@@ -37,8 +37,8 @@
 
     private string Status => _info?.SetBy switch
     {
-        "self" => "You added your own key.",
-        "owner" => "The owner added a key for you. You can replace it with your own.",
+        KeySource.Self => "You added your own key.",
+        KeySource.Owner => "The owner added a key for you. You can replace it with your own.",
         _ when Session.Current is { IsOwner: true } => "None saved here, so Amiki uses the server's key (Gemini__ApiKey), if there is one.",
         _ => "No key yet, so Amiki can't chat or write your daily note. Add one, or ask the owner to.",
     };

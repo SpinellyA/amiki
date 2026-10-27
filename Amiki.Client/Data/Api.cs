@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Amiki.Core;
+using Amiki.Domain;
 using Microsoft.JSInterop;
 
 namespace Amiki.Data;

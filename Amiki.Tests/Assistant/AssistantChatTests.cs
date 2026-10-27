@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json.Nodes;
-using Amiki.Api.Assistant;
+using Amiki.Application.Assistant;
+using Amiki.Infrastructure.Assistant;
 using Amiki.Api.Users;
+using Amiki.Application.People;
 using Amiki.Modules.Assistant;
 using Microsoft.Extensions.Options;
 
@@ -85,14 +87,14 @@ public class AssistantChatTests
     [Fact]
     public void Spending_by_week_finds_the_most_expensive_week_and_what_drove_it()
     {
-        AssistantTools.Flow Spent(DateTime day, decimal amount, string category, string note) => new(day, Amiki.Modules.Finance.TxKind.Expense, amount, category, "Cash", note);
+        AssistantTools.Flow Spent(DateTime day, decimal amount, string category, string note) => new(day, Amiki.Domain.Finance.TxKind.Expense, amount, category, "Cash", note);
 
         var result = AssistantTools.PerPeriod(
         [
             Spent(new DateTime(2026, 9, 14), 80, "Food", "Lunch"),                 // week of Sep 14
             Spent(new DateTime(2026, 9, 23), 3000, "School", "Tuition installment"), // week of Sep 21
             Spent(new DateTime(2026, 9, 25), 120, "Food", "Milk tea"),
-            new(new DateTime(2026, 9, 26), Amiki.Modules.Finance.TxKind.Income, 1500, "Allowance", "Cash", "Baon"),
+            new(new DateTime(2026, 9, 26), Amiki.Domain.Finance.TxKind.Income, 1500, "Allowance", "Cash", "Baon"),
         ], byMonth: false);
 
         var top = result["most_spent"]!;

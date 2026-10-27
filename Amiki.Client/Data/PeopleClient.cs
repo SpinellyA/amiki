@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using Amiki.Modules.People;
+using Amiki.Contracts.People;
 
 namespace Amiki.Data;
 

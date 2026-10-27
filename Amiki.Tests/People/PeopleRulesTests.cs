@@ -1,16 +1,18 @@
 using System.Net;
-using Amiki.Api.Assistant;
+using Amiki.Application.Assistant;
+using Amiki.Infrastructure.Assistant;
 using Amiki.Api.Users;
+using Amiki.Application.People;
 using Amiki.Modules.Assistant;
-using Amiki.Modules.People;
+using Amiki.Contracts.People;
 using Microsoft.Extensions.Options;
 
 namespace Amiki.Tests.People;
 
 public class PeopleRulesTests
 {
-    private static readonly AppUser Owner = new() { Id = AppUser.OwnerId, Email = "owner@gmail.com" };
-    private static readonly AppUser Member = new() { Email = "friend@gmail.com" };
+    private static readonly AppUser Owner = AppUser.CreateOwner("owner@gmail.com", new DateTime(2026, 10, 1));
+    private static readonly AppUser Member = AppUser.Invite("friend@gmail.com", new DateTime(2026, 10, 1));
 
     private sealed class KeyCatcher : HttpMessageHandler
     {
