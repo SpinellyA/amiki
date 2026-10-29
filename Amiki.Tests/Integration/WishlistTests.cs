@@ -23,6 +23,18 @@ public class WishlistTests(AmikiApp app)
     }
 
     [Fact]
+    public async Task Wishlist_money_is_saved_per_person()
+    {
+        var (_, friend) = await app.AddPersonAsync();
+        var fund = new WishlistFund().SetTo(3000, DateTime.Now);
+
+        (await app.As(friend).PutAsJsonAsync($"api/wishlist-fund/{fund.Id}", fund, Json)).EnsureSuccessStatusCode();
+
+        Assert.Equal(3000, Assert.Single((await app.As(friend).GetFromJsonAsync<List<WishlistFund>>("api/wishlist-fund", Json))!).Amount);
+        Assert.Empty((await app.As().GetFromJsonAsync<List<WishlistFund>>("api/wishlist-fund", Json))!);
+    }
+
+    [Fact]
     public async Task A_bad_item_is_refused()
     {
         var bad = new WishItem { Name = "Tablet", Price = 100, Link = "javascript:alert(1)" };

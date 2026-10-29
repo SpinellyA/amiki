@@ -1,0 +1,26 @@
+@* How much of your balance is for wishlist things. Only a label: no money moves. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="muted mb-3">
+            Out of your @Money.Format(Balance) total balance. Your accounts don't change; this just marks how much of it
+            is for wishlist things, so that's what your wishlist is weighed against.
+        </MudText>
+        <MudNumericField T="decimal" @bind-Value="Amount" Label="Wishlist money" Variant="Variant.Outlined" Min="0" AutoFocus="true"
+                         Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true" />
+        @if (Amount > Balance)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">That's more than your whole balance right now.</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Amount < 0" OnClick="() => Dialog.Close(DialogResult.Ok(Amount))">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public decimal Balance { get; set; }
+}

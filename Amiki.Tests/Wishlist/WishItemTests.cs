@@ -34,7 +34,7 @@ public class WishItemTests
     }
 
     [Fact]
-    public void The_summary_totals_what_youre_saving_for_and_what_youd_have_left()
+    public void The_summary_weighs_the_wishlist_against_wishlist_money_not_the_whole_balance()
     {
         var summary = new WishlistSummary(
         [
@@ -43,13 +43,27 @@ public class WishItemTests
             Tablet(20000, WishStatus.Want),
             Tablet(999, WishStatus.Bought),
             Tablet(50, WishStatus.Skipped),
-        ], balance: 10000);
+        ], fund: 10000, balance: 50000);
 
         Assert.Equal(5300, summary.SavingFor);
         Assert.Equal(4700, summary.AfterSaving.LeftAfter);
-        Assert.False(summary.AfterEverything.CanAfford);
+        Assert.False(summary.AfterEverything.CanAfford); // 25,300 > 10,000 set aside, though the balance could cover it
         Assert.Equal(15300, summary.AfterEverything.Short);
+        Assert.Equal(50000, summary.Balance);
+        Assert.False(summary.FundExceedsBalance);
         Assert.Equal(3, summary.OpenCount);
+    }
+
+    [Fact]
+    public void Buying_spends_from_wishlist_money_but_never_below_zero()
+    {
+        var fund = new WishlistFund().SetTo(5000, Now);
+
+        Assert.Equal(500, fund.Spend(4500, Now).Amount);
+        Assert.Equal(0, fund.Spend(9000, Now).Amount);
+        Assert.Null(fund.Validate());
+        Assert.NotNull(fund.SetTo(-1, Now).Validate());
+        Assert.NotNull(new WishlistFund { Id = Guid.NewGuid() }.Validate()); // there's only one per person
     }
 
     [Theory]

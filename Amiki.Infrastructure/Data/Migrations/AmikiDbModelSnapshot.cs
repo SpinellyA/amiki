@@ -595,6 +595,26 @@ namespace Amiki.Infrastructure.Data.Migrations
                     b.ToTable("wish_items", (string)null);
                 });
 
+            modelBuilder.Entity("Amiki.Domain.Wishlist.WishlistFund", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.ToTable("wishlist_funds", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")

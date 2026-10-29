@@ -2,10 +2,11 @@ using Amiki.Data;
 
 namespace Amiki.Modules.Wishlist;
 
-/// <summary>Your wishlist on this device, kept in sync with the server.</summary>
+/// <summary>Your wishlist and the money set aside for it, on this device, kept in sync with the server.</summary>
 public sealed class WishlistStore(Api api, SyncQueue sync) : IRemoteStore
 {
     private const string Path = "wishlist";
+    private const string FundPath = "wishlist-fund";
 
     private List<WishItem> _items = [];
 
@@ -13,16 +14,27 @@ public sealed class WishlistStore(Api api, SyncQueue sync) : IRemoteStore
 
     public IReadOnlyList<WishItem> All => _items;
 
+    /// <summary>Wishlist money. Zero until you set some aside.</summary>
+    public WishlistFund Fund { get; private set; } = new();
+
+    /// <summary>Whether wishlist money was ever set (so the page can invite you to).</summary>
+    public bool HasFund { get; private set; }
+
     public IEnumerable<WishItem> InStatus(WishStatus status) =>
         _items.Where(i => i.Status == status).OrderBy(i => i.IsOpen ? i.Price : 0).ThenByDescending(i => i.BoughtAt ?? i.CreatedAt);
 
-    public IEnumerable<(string Path, object Data)> Snapshot() => [(Path, _items)];
+    public IEnumerable<(string Path, object Data)> Snapshot() =>
+        [(Path, _items), (FundPath, HasFund ? new List<WishlistFund> { Fund } : [])];
 
     public WishItem? Get(Guid id) => _items.FirstOrDefault(i => i.Id == id);
 
     public async Task LoadAsync(CancellationToken ct)
     {
-        _items = await api.GetAllAsync<WishItem>(Path, ct);
+        var items = api.GetAllAsync<WishItem>(Path, ct);
+        var funds = api.GetAllAsync<WishlistFund>(FundPath, ct);
+        _items = await items;
+        var fund = (await funds).FirstOrDefault();
+        (Fund, HasFund) = (fund ?? new WishlistFund(), fund is not null);
         Changed?.Invoke();
     }
 
@@ -39,6 +51,13 @@ public sealed class WishlistStore(Api api, SyncQueue sync) : IRemoteStore
     {
         if (_items.RemoveAll(x => x.Id == item.Id) == 0) return;
         sync.Delete(Path, item.Id);
+        Changed?.Invoke();
+    }
+
+    public void SaveFund(WishlistFund fund)
+    {
+        (Fund, HasFund) = (fund, true);
+        sync.Put(FundPath, fund.Id, fund);
         Changed?.Invoke();
     }
 }

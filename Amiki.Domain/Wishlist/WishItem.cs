@@ -47,8 +47,8 @@ public sealed class WishItem : IEntity
         return bought;
     }
 
-    /// <summary>What buying it would do to <paramref name="balance"/>.</summary>
-    public Affordability Against(decimal balance) => new(Price, balance);
+    /// <summary>What buying it would do to <paramref name="money"/> (usually your wishlist money).</summary>
+    public Affordability Against(decimal money) => new(Price, money);
 
     public string? Validate() =>
         string.IsNullOrWhiteSpace(Name) ? "Give it a name."

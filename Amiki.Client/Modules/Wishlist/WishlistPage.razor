@@ -9,7 +9,7 @@
 <div class="page-head">
     <div>
         <MudText Typo="Typo.h4">Wishlist</MudText>
-        <MudText Typo="Typo.body2" Class="muted">Things you'd like to buy, against the money you actually have.</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Things you'd like to buy, against the money you've set aside for them.</MudText>
     </div>
     <div class="head-actions">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => Actions.EditAsync()">Add item</MudButton>
@@ -31,6 +31,25 @@ else
         <MudPaper Outlined="true" Class="wish-stat">
             <span class="stat-label">Total balance</span>
             <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.Balance)</span>
+            <span class="muted wish-stat-note">All your accounts, as they are.</span>
+        </MudPaper>
+        <MudPaper Outlined="true" Class="wish-stat wish-fund">
+            <span class="stat-label">
+                Wishlist money
+                <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Class="wish-fund-edit"
+                               aria-label="Set wishlist money" OnClick="() => Actions.SetFundAsync(Summary.Balance)" />
+            </span>
+            @if (Store.HasFund)
+            {
+                <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.Fund)</span>
+                <span class="muted wish-stat-note">@(Summary.FundExceedsBalance ? "More than your balance right now." : "Set aside from your balance for these.")</span>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Class="wish-fund-start"
+                           OnClick="() => Actions.SetFundAsync(Summary.Balance)">Set some aside</MudButton>
+                <span class="muted wish-stat-note">Your wishlist is weighed against this, not your whole balance.</span>
+            }
         </MudPaper>
         <MudPaper Outlined="true" Class="wish-stat">
             <span class="stat-label">Saving for</span>
@@ -68,7 +87,7 @@ else
             {
                 @foreach (var item in items)
                 {
-                    <WishItemRow @key="item.Id" Item="item" Balance="Summary.Balance" />
+                    <WishItemRow @key="item.Id" Item="item" Available="Summary.Fund" />
                 }
             }
         </MudPaper>
@@ -79,7 +98,7 @@ else
     // Bought and Skipped start folded away: they're history, not the point of the page.
     private readonly HashSet<WishStatus> _shown = [];
 
-    private WishlistSummary Summary => new(Store.All, Money.TotalBalance);
+    private WishlistSummary Summary => new(Store.All, Store.Fund.Amount, Money.TotalBalance);
 
     protected override void OnInitialized()
     {
@@ -104,6 +123,6 @@ else
     }
 
     private static string AfterLine(Affordability after) => after.CanAfford
-        ? $"{Amiki.Domain.Finance.Money.Format(after.LeftAfter)} left if you buy it all"
-        : $"{Amiki.Domain.Finance.Money.Format(after.Short)} short";
+        ? $"{Amiki.Domain.Finance.Money.Format(after.LeftAfter)} of wishlist money left if you buy it all"
+        : $"{Amiki.Domain.Finance.Money.Format(after.Short)} more wishlist money needed";
 }

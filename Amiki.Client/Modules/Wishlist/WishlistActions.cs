@@ -47,7 +47,23 @@ public sealed class WishlistActions(WishlistStore store, FinanceActions money, C
         if (!await money.EditAsync(purchase)) return;
 
         store.Upsert(item.BoughtWith(purchase.Id, DateTime.Now));
-        snackbar.Add($"Bought “{item.Name}” · logged {Money.Format(purchase.Amount)} in Money", Severity.Success);
+        // The purchase was paid from wishlist money, so it's spent from there too (not counted twice).
+        var spent = Math.Min(store.Fund.Amount, purchase.Amount);
+        if (spent > 0) store.SaveFund(store.Fund.Spend(purchase.Amount, DateTime.Now));
+        snackbar.Add($"Bought “{item.Name}” · logged {Money.Format(purchase.Amount)} in Money"
+            + (spent > 0 ? $" · {Money.Format(spent)} from wishlist money" : ""), Severity.Success);
+    }
+
+    /// <summary>Sets how much of your balance is for wishlist things.</summary>
+    public async Task SetFundAsync(decimal balance)
+    {
+        var parameters = new DialogParameters<WishlistFundDialog> { { d => d.Amount, store.Fund.Amount }, { d => d.Balance, balance } };
+        var dialog = await dialogs.ShowAsync<WishlistFundDialog>("Wishlist money", parameters, Options);
+        if (await dialog.Result is not { Canceled: false, Data: decimal amount }) return;
+
+        var before = store.Fund;
+        store.SaveFund(store.Fund.SetTo(amount, DateTime.Now));
+        WithUndo($"Wishlist money set to {Money.Format(store.Fund.Amount)}", () => store.SaveFund(before));
     }
 
     public void DeleteWithUndo(WishItem item)

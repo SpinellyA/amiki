@@ -2381,7 +2381,8 @@ html, body {
 }
 
 /* Wishlist */
-.wish-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.wish-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+@media (max-width: 900px) { .wish-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .wish-stat { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.8rem 1rem; }
 .wish-stat-value { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .wish-stat-note { font-size: 0.8rem; }
@@ -2412,3 +2413,7 @@ html, body {
     .wish-row { flex-wrap: wrap; }
     .wish-actions { width: 100%; justify-content: flex-end; }
 }
+.wish-fund { border-color: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-lines-default)); }
+.wish-fund .stat-label { display: flex; align-items: center; justify-content: space-between; }
+.wish-fund-edit { margin: -0.5rem -0.5rem -0.5rem 0; }
+.wish-fund-start { align-self: flex-start; margin-left: -0.5rem; }

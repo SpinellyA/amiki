@@ -1,4 +1,4 @@
-@* One wishlist item: name, price, what it does to your balance, and what you can do with it. *@
+@* One wishlist item: name, price, what it does to your wishlist money, and what you can do with it. *@
 @inject WishlistActions Actions
 
 <div class="wish-row @(Item.IsOpen ? "" : "wish-done")">
@@ -17,12 +17,12 @@
         }
         @if (Item.IsOpen)
         {
-            var afford = Item.Against(Balance);
+            var afford = Item.Against(Available);
             <div class="wish-afford @(afford.CanAfford ? "ok" : "short")">
                 <div class="wish-meter" aria-hidden="true"><span style="width: @((afford.Covered * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
                 <span>@(afford.CanAfford
-                    ? $"You can afford it · {Money.Format(afford.LeftAfter)} left after"
-                    : $"{Money.Format(afford.Short)} short of your balance")</span>
+                    ? $"Wishlist money covers it · {Money.Format(afford.LeftAfter)} left after"
+                    : $"{Money.Format(afford.Short)} more wishlist money needed")</span>
             </div>
         }
         else if (Item.BoughtAt is { } bought)
@@ -52,6 +52,6 @@
 @code {
     [Parameter, EditorRequired] public WishItem Item { get; set; } = default!;
 
-    /// <summary>Your total balance across accounts right now.</summary>
-    [Parameter] public decimal Balance { get; set; }
+    /// <summary>Your wishlist money: what this item is weighed against.</summary>
+    [Parameter] public decimal Available { get; set; }
 }

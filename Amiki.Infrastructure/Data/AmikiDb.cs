@@ -52,6 +52,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
     public DbSet<AssistantSettings> AssistantSettings => Set<AssistantSettings>();
     public DbSet<DailyBriefing> DailyBriefings => Set<DailyBriefing>();
     public DbSet<WishItem> Wishlist => Set<WishItem>();
+    public DbSet<WishlistFund> WishlistFunds => Set<WishlistFund>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -85,6 +86,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
         PerPerson<AssistantSettings>(model);
         PerPerson<DailyBriefing>(model);
         PerPerson<WishItem>(model);
+        PerPerson<WishlistFund>(model);
 
         model.Entity<InboxItem>().ToTable("inbox_items");
 
@@ -96,6 +98,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
             wish.Property(w => w.Note).HasMaxLength(WishItem.MaxNote);
             wish.Property(w => w.Status).HasConversion<string>().HasMaxLength(16);
         });
+        model.Entity<WishlistFund>().ToTable("wishlist_funds");
 
         model.Entity<TaskItem>(task =>
         {
