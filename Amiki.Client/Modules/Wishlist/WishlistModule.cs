@@ -14,7 +14,10 @@ public static class WishlistModule
             Icon: Icons.Material.Outlined.FavoriteBorder,
             Href: "wishlist",
             Order: 35,
-            Section: NavSection.Track));
+            Section: NavSection.Track,
+            Widgets: [new(typeof(WishlistWidget), 5)],
+            // Listens for income on every page, to grow wishlist money.
+            Overlay: typeof(WishlistIncomeWatcher)));
         return services;
     }
 }

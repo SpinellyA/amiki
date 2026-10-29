@@ -1,0 +1,61 @@
+@* Dashboard: the thing you're closest to getting, and how far there is to go. *@
+@implements IDisposable
+@inject WishlistStore Store
+@inject WishlistActions Actions
+@inject FinanceStore Finance
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.FavoriteBorder" Size="Size.Small" />
+        <span>Wishlist</span>
+        <MudSpacer />
+        <MudLink Href="wishlist" Typo="Typo.body2">All →</MudLink>
+    </div>
+    @{
+        var summary = Actions.Summary;
+    }
+    @if (summary.Closest is { } item)
+    {
+        <div class="wish-widget">
+            <div class="wish-widget-name">@item.Name</div>
+            <div class="wish-meter wish-widget-meter" aria-hidden="true">
+                <span style="width: @((item.Progress * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span>
+            </div>
+            <div class="muted wish-note">
+                @(item.Remaining == 0
+                    ? $"Fully saved: {Money.Format(item.Price)}. Ready when you are."
+                    : $"{Money.Format(item.Saved)} of {Money.Format(item.Price)} · {Money.Format(item.Remaining)} to go")
+            </div>
+            @if (item.PaceOn(DateTime.Today) is { IsLate: false } pace)
+            {
+                <div class="muted wish-note">@Money.Format(pace.PerWeek)/week to have it by @item.TargetDate!.Value.ToString("MMM d")</div>
+            }
+        </div>
+    }
+    else if (summary.OpenCount > 0)
+    {
+        <div class="wish-widget muted">
+            @summary.OpenCount thing@(summary.OpenCount == 1 ? "" : "s") on your wishlist. Move one to “Saving for” to track how close you are.
+        </div>
+    }
+    else
+    {
+        <div class="wish-widget muted">Nothing on your wishlist yet.</div>
+    }
+</MudPaper>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Finance.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Finance.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+}

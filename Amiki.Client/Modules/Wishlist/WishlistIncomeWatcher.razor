@@ -1,0 +1,40 @@
+@* Shows nothing. When you log income: with a share rule, that share goes to wishlist money (with Undo);
+   without one, and with something on your wishlist, a one-tap offer to set some aside. *@
+@implements IDisposable
+@inject FinanceStore Finance
+@inject WishlistStore Store
+@inject WishlistActions Actions
+@inject ISnackbar Snackbar
+
+@code {
+    /// <summary>The share offered when you haven't set a rule.</summary>
+    private const int SuggestedShare = 10;
+
+    protected override void OnInitialized() => Finance.IncomeLogged += OnIncome;
+
+    public void Dispose() => Finance.IncomeLogged -= OnIncome;
+
+    private void OnIncome(Transaction income)
+    {
+        if (Store.Fund.IncomeShare is { } share)
+        {
+            Actions.AddToFund(Store.Fund.ShareOf(income.Amount), $"({share}% of your {income.Category.ToLowerInvariant()})");
+            return;
+        }
+        if (!Store.All.Any(i => i.IsOpen)) return;
+
+        var offer = Math.Round(income.Amount * SuggestedShare / 100, 2);
+        if (offer <= 0) return;
+        Snackbar.Add($"Got {Money.Format(income.Amount)}. Set {Money.Format(offer)} ({SuggestedShare}%) aside for your wishlist?", Severity.Normal, c =>
+        {
+            c.Action = $"Add {Money.Format(offer)}";
+            c.ActionColor = Color.Primary;
+            c.VisibleStateDuration = 8000; // a little longer than usual: it's a question
+            c.OnClick = _ =>
+            {
+                Actions.AddToFund(offer, $"({SuggestedShare}% of your {income.Category.ToLowerInvariant()})");
+                return Task.CompletedTask;
+            };
+        });
+    }
+}

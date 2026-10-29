@@ -62,10 +62,15 @@ public sealed class FinanceStore(Api api, SyncQueue sync) : IRemoteStore
 
     public void Upsert(Transaction tx)
     {
+        var isNew = _items.All(t => t.Id != tx.Id);
         Replace(_items, tx, t => t.Id);
         sync.Put(TransactionsPath, tx.Id, tx);
         Changed?.Invoke();
+        if (isNew && tx.Kind == TxKind.Income && !Category.IsCorrection(tx.Category)) IncomeLogged?.Invoke(tx);
     }
+
+    /// <summary>Raised when you log new income (not edits, not balance fixes), e.g. so the wishlist can take its share.</summary>
+    public event Action<Transaction>? IncomeLogged;
 
     public void Remove(Transaction tx)
     {
