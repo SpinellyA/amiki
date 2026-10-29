@@ -97,6 +97,16 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
             wish.Property(w => w.Link).HasMaxLength(WishItem.MaxLink);
             wish.Property(w => w.Note).HasMaxLength(WishItem.MaxNote);
             wish.Property(w => w.Status).HasConversion<string>().HasMaxLength(16);
+            // Earlier prices are only ever read with the item, so they live in a jsonb column on its row.
+            wish.Property(w => w.PriceHistory)
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    points => JsonSerializer.Serialize(points, Json),
+                    json => JsonSerializer.Deserialize<List<PricePoint>>(json, Json) ?? new List<PricePoint>(),
+                    new ValueComparer<List<PricePoint>>(
+                        (a, b) => JsonSerializer.Serialize(a, Json) == JsonSerializer.Serialize(b, Json),
+                        points => JsonSerializer.Serialize(points, Json).GetHashCode(),
+                        points => JsonSerializer.Deserialize<List<PricePoint>>(JsonSerializer.Serialize(points, Json), Json)!));
         });
         model.Entity<WishlistFund>().ToTable("wishlist_funds");
 

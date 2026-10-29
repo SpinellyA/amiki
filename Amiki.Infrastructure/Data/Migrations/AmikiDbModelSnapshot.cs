@@ -582,10 +582,24 @@ namespace Amiki.Infrastructure.Data.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<string>("PriceHistory")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Saved")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("TargetDate")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid?>("TransactionId")
                         .HasColumnType("uuid");
@@ -606,6 +620,9 @@ namespace Amiki.Infrastructure.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
+
+                    b.Property<int?>("IncomeShare")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");

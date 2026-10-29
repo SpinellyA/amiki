@@ -20,8 +20,17 @@ public sealed class WishlistStore(Api api, SyncQueue sync) : IRemoteStore
     /// <summary>Whether wishlist money was ever set (so the page can invite you to).</summary>
     public bool HasFund { get; private set; }
 
-    public IEnumerable<WishItem> InStatus(WishStatus status) =>
-        _items.Where(i => i.Status == status).OrderBy(i => i.IsOpen ? i.Price : 0).ThenByDescending(i => i.BoughtAt ?? i.CreatedAt);
+    /// <summary>Saving for: in your order. Want: cheapest first. Bought and Skipped: newest first.</summary>
+    public IEnumerable<WishItem> InStatus(WishStatus status)
+    {
+        var items = _items.Where(i => i.Status == status);
+        return status switch
+        {
+            WishStatus.Saving => items.OrderBy(i => i.Rank).ThenBy(i => i.CreatedAt),
+            WishStatus.Want => items.OrderBy(i => i.Price),
+            _ => items.OrderByDescending(i => i.BoughtAt ?? i.CreatedAt),
+        };
+    }
 
     public IEnumerable<(string Path, object Data)> Snapshot() =>
         [(Path, _items), (FundPath, HasFund ? new List<WishlistFund> { Fund } : [])];
@@ -59,5 +68,24 @@ public sealed class WishlistStore(Api api, SyncQueue sync) : IRemoteStore
         (Fund, HasFund) = (fund, true);
         sync.Put(FundPath, fund.Id, fund);
         Changed?.Invoke();
+    }
+
+    /// <summary>Saves a move of money between wishlist money and an item: both sides, together.</summary>
+    public void Apply(WishlistChange change)
+    {
+        if (change.Fund.Amount != Fund.Amount || !HasFund) SaveFund(change.Fund);
+        Upsert(change.Item);
+    }
+
+    /// <summary>Saves several items' new order at once (only the ones that actually moved).</summary>
+    public void Reorder(IReadOnlyList<WishItem> inOrder)
+    {
+        for (var rank = 0; rank < inOrder.Count; rank++)
+        {
+            if (Get(inOrder[rank].Id) is not { } current || current.Rank == rank) continue;
+            var moved = current.Clone();
+            moved.Rank = rank;
+            Upsert(moved);
+        }
     }
 }

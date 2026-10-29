@@ -1,26 +1,48 @@
-@* How much of your balance is for wishlist things. Only a label: no money moves. *@
+@* How much of your balance is for wishlist things, and whether income adds to it by itself. Only a label: no money moves. *@
 
 <MudDialog>
     <DialogContent>
         <MudText Typo="Typo.body2" Class="muted mb-3">
-            Out of your @Money.Format(Balance) total balance. Your accounts don't change; this just marks how much of it
-            is for wishlist things, so that's what your wishlist is weighed against.
+            Out of your @Money.Format(Balance) total balance. Your accounts don't change; this marks how much of it is
+            for wishlist things.@(SavedInItems > 0 ? $" {Money.Format(SavedInItems)} is already put toward items, on top of this." : "")
         </MudText>
-        <MudNumericField T="decimal" @bind-Value="Amount" Label="Wishlist money" Variant="Variant.Outlined" Min="0" AutoFocus="true"
+        <MudNumericField T="decimal" @bind-Value="Amount" Label="Wishlist money not put toward anything" Variant="Variant.Outlined" Min="0" AutoFocus="true"
                          Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true" />
-        @if (Amount > Balance)
+        @if (Amount + SavedInItems > Balance)
         {
-            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">That's more than your whole balance right now.</MudAlert>
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                That's more than your whole balance. Only what your accounts really hold will count.
+            </MudAlert>
+        }
+
+        <MudSwitch T="bool" Value="_share" ValueChanged="v => { _share = v; IncomeShare ??= DefaultShare; }" Color="Color.Primary" Class="mt-4"
+                   Label="Set aside part of every income automatically" />
+        @if (_share)
+        {
+            <MudNumericField T="int?" @bind-Value="IncomeShare" Label="Share of each income" Variant="Variant.Outlined" Min="1" Max="WishlistFund.MaxIncomeShare"
+                             Adornment="Adornment.End" AdornmentText="%" HideSpinButtons="true" Class="mt-2"
+                             HelperText="@($"e.g. a {Money.Format(1500)} allowance adds {Money.Format(Math.Round(1500m * (IncomeShare ?? 0) / 100, 2))}. You can undo each one.")" />
         }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Amount < 0" OnClick="() => Dialog.Close(DialogResult.Ok(Amount))">Save</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Amount < 0 || (_share && IncomeShare is not (>= 1 and <= WishlistFund.MaxIncomeShare))"
+                   OnClick="Save">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
+    private const int DefaultShare = 10;
+
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
     [Parameter] public decimal Amount { get; set; }
     [Parameter] public decimal Balance { get; set; }
+    [Parameter] public decimal SavedInItems { get; set; }
+    [Parameter] public int? IncomeShare { get; set; }
+
+    private bool _share;
+
+    protected override void OnInitialized() => _share = IncomeShare is not null;
+
+    private void Save() => Dialog.Close(DialogResult.Ok((Amount, _share ? IncomeShare : (int?)null)));
 }

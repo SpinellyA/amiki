@@ -302,10 +302,13 @@ else
 
     private bool CanAdd => _newAmount > 0 && !string.IsNullOrWhiteSpace(_newName);
 
+    /// <summary>Opens a given plan, e.g. /money/plan?plan={id} (used by the wishlist's "Plan it").</summary>
+    [SupplyParameterFromQuery(Name = "plan")] public Guid? PlanParameter { get; set; }
+
     protected override void OnInitialized()
     {
         Plans.Changed += OnChanged;
-        Select(Plans.Active.FirstOrDefault());
+        Select((PlanParameter is { } id ? Plans.Get(id) : null) ?? Plans.Active.FirstOrDefault());
     }
 
     public void Dispose() => Plans.Changed -= OnChanged;

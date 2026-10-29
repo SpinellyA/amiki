@@ -1,7 +1,16 @@
-@* One wishlist item: name, price, what it does to your wishlist money, and what you can do with it. *@
+@* One wishlist item: name, price, how close you are, and what you can do with it. *@
 @inject WishlistActions Actions
 
 <div class="wish-row @(Item.IsOpen ? "" : "wish-done")">
+    @if (CanMove)
+    {
+        <div class="wish-order">
+            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="IsFirst"
+                           aria-label="@($"Move {Item.Name} up")" OnClick="() => Actions.Move(Item, -1)" />
+            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="IsLast"
+                           aria-label="@($"Move {Item.Name} down")" OnClick="() => Actions.Move(Item, 1)" />
+        </div>
+    }
     <div class="wish-main">
         <div class="wish-name">
             @Item.Name
@@ -17,20 +26,41 @@
         }
         @if (Item.IsOpen)
         {
-            var afford = Item.Against(Available);
-            <div class="wish-afford @(afford.CanAfford ? "ok" : "short")">
-                <div class="wish-meter" aria-hidden="true"><span style="width: @((afford.Covered * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
-                <span>@(afford.CanAfford
-                    ? $"Wishlist money covers it · {Money.Format(afford.LeftAfter)} left after"
-                    : $"{Money.Format(afford.Short)} more wishlist money needed")</span>
-            </div>
+            var afford = Item.Against(Pool);
+            @if (Item.Saved > 0 || Item.Status == WishStatus.Saving)
+            {
+                <div class="wish-afford @(Item.Remaining == 0 ? "ok" : "")">
+                    <div class="wish-meter" aria-hidden="true"><span style="width: @Percent(Item.Progress)"></span></div>
+                    <span>@(Item.Remaining == 0 ? "Fully saved" : $"{Money.Format(Item.Saved)} of {Money.Format(Item.Price)} saved")</span>
+                </div>
+            }
+            @if (Item.PaceOn(DateTime.Today) is { } pace)
+            {
+                <div class="muted wish-note">
+                    @(pace.IsLate
+                        ? $"Wanted by {Item.TargetDate:MMM d}: {Money.Format(pace.Remaining)} still to go"
+                        : $"{Money.Format(pace.PerWeek)}/week to have it by {Item.TargetDate:MMM d}")
+                </div>
+            }
+            @if (Item.Remaining > 0)
+            {
+                <div class="muted wish-note @(afford.CanAfford ? "wish-covered" : "")">
+                    @(afford.CanAfford ? "Wishlist money covers the rest" : $"{Money.Format(afford.Short)} more wishlist money needed")
+                </div>
+            }
         }
         else if (Item.BoughtAt is { } bought)
         {
             <div class="muted wish-note">Bought @When.Day(bought).ToLowerInvariant()@(Item.TransactionId is null ? "" : " · logged in Money")</div>
         }
     </div>
-    <div class="wish-price">@Money.Format(Item.Price)</div>
+    <div class="wish-price">
+        @Money.Format(Item.Price)
+        @if (Item.PreviousPrice is { } was && Item.IsOpen)
+        {
+            <span class="wish-was @(was > Item.Price ? "down" : "up")" title="@($"Was {Money.Format(was)}")">was @Money.Format(was)</span>
+        }
+    </div>
     <div class="wish-actions">
         @if (Item.IsOpen)
         {
@@ -39,6 +69,11 @@
         }
         <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                  aria-label="@($"More for {Item.Name}")">
+            @if (Item.IsOpen)
+            {
+                <MudMenuItem Icon="@Icons.Material.Outlined.Savings" OnClick="() => Actions.PutTowardAsync(Item)">Put money toward it</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Outlined.ShowChart" OnClick="() => OnPlan.InvokeAsync(Item)">Plan it in What if</MudMenuItem>
+            }
             <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Actions.EditAsync(Item)">Edit</MudMenuItem>
             @foreach (var status in WishStatusLook.Order.Where(s => s != Item.Status && s != WishStatus.Bought))
             {
@@ -52,6 +87,16 @@
 @code {
     [Parameter, EditorRequired] public WishItem Item { get; set; } = default!;
 
-    /// <summary>Your wishlist money: what this item is weighed against.</summary>
-    [Parameter] public decimal Available { get; set; }
+    /// <summary>Wishlist money not put toward anything (and still really in your accounts).</summary>
+    [Parameter] public decimal Pool { get; set; }
+
+    /// <summary>Show up/down arrows (saving-for items, which have an order).</summary>
+    [Parameter] public bool CanMove { get; set; }
+    [Parameter] public bool IsFirst { get; set; }
+    [Parameter] public bool IsLast { get; set; }
+
+    /// <summary>"Plan it in What if" was picked.</summary>
+    [Parameter] public EventCallback<WishItem> OnPlan { get; set; }
+
+    private static string Percent(double share) => (share * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
 }

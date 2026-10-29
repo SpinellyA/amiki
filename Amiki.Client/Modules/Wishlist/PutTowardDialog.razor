@@ -1,0 +1,44 @@
+@* Move wishlist money onto one item (or back off it). Nothing leaves your accounts. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="muted mb-3">
+            @Money.Format(Item.Saved) of @Money.Format(Item.Price) put toward it so far.
+            @Money.Format(Pool) of wishlist money isn't put toward anything yet.
+        </MudText>
+        <MudToggleGroup T="bool" @bind-Value="_takeBack" Color="Color.Primary" Size="Size.Small" Class="mb-3" FixedContent="true">
+            <MudToggleItem Value="false">Put toward it</MudToggleItem>
+            <MudToggleItem Value="true" Disabled="Item.Saved <= 0">Take back</MudToggleItem>
+        </MudToggleGroup>
+        <MudNumericField T="decimal" @bind-Value="_amount" Label="Amount" Variant="Variant.Outlined" Min="0" Max="Limit" AutoFocus="true"
+                         Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true"
+                         HelperText="@(_takeBack ? $"Up to {Money.Format(Item.Saved)}" : $"Up to {Money.Format(Limit)}")" />
+        @if (!_takeBack && Limit > 0)
+        {
+            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" Class="mt-1"
+                       OnClick="() => _amount = Limit">@(Pool >= Item.Remaining ? $"All it still needs ({Money.Format(Limit)})" : $"All of it ({Money.Format(Limit)})")</MudButton>
+        }
+        @if (!_takeBack && Pool <= 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">Set aside some wishlist money first (the pencil on the Wishlist money card).</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_amount <= 0 || _amount > Limit"
+                   OnClick="() => Dialog.Close(DialogResult.Ok(_takeBack ? -_amount : _amount))">@(_takeBack ? "Take back" : "Put toward it")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public WishItem Item { get; set; } = default!;
+
+    /// <summary>Wishlist money not put toward anything (and still really in your accounts).</summary>
+    [Parameter] public decimal Pool { get; set; }
+
+    private bool _takeBack;
+    private decimal _amount;
+
+    private decimal Limit => _takeBack ? Item.Saved : Math.Min(Pool, Item.Remaining);
+}

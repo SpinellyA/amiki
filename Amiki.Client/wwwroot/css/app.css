@@ -2408,6 +2408,15 @@ html, body {
 .wish-meter { width: 5rem; height: 4px; border-radius: 2px; background: var(--mud-palette-lines-default); overflow: hidden; flex-shrink: 0; }
 .wish-meter span { display: block; height: 100%; background: var(--mud-palette-warning); }
 .wish-afford.ok .wish-meter span { background: var(--mud-palette-success); }
+.wish-afford .wish-meter span { background: var(--mud-palette-primary); }
+.wish-afford.ok .wish-meter span { background: var(--mud-palette-success); }
+.wish-covered { color: var(--mud-palette-success); }
+.wish-warn { font-size: 0.75rem; color: var(--mud-palette-warning); }
+.wish-order { display: flex; flex-direction: column; margin: -0.4rem 0 -0.4rem -0.6rem; flex-shrink: 0; }
+.wish-order .mud-icon-button { padding: 2px; }
+.wish-price { display: flex; flex-direction: column; align-items: flex-end; }
+.wish-was { font-size: 0.7rem; font-weight: 400; text-decoration: line-through; color: var(--mud-palette-text-secondary); }
+.wish-was.down { color: var(--mud-palette-success); }
 
 @media (max-width: 600px) {
     .wish-row { flex-wrap: wrap; }

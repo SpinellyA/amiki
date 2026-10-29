@@ -38,6 +38,21 @@ public sealed class PlanStore(Api api, SyncQueue sync, FinanceStore finance) : I
         return plan;
     }
 
+    /// <summary>
+    /// A plan for one purchase (from the wishlist): today's balance, then the price, now or in the
+    /// month you want it by. Add expected income and other spending to it on the What if page.
+    /// </summary>
+    public Plan PlanPurchase(string what, decimal price, DateTime? by)
+    {
+        var name = $"Buy {what}";
+        var plan = Create(name.Length > 200 ? name[..200] : name);
+        var thisMonth = new DateTime(plan.StartDate.Year, plan.StartDate.Month, 1);
+        var when = by is { } date && new DateTime(date.Year, date.Month, 1) > thisMonth ? new DateTime(date.Year, date.Month, 1) : plan.StartDate;
+        plan.Items.Add(new PlanItem { Name = what, Kind = TxKind.Expense, Amount = price, Date = when });
+        Touch(plan);
+        return plan;
+    }
+
     /// <summary>Copies a plan: the quickest way to try a different version.</summary>
     public Plan Duplicate(Plan source)
     {

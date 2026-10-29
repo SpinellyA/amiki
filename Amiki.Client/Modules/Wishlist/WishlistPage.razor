@@ -3,6 +3,8 @@
 @inject WishlistStore Store
 @inject FinanceStore Money
 @inject WishlistActions Actions
+@inject PlanStore Plans
+@inject NavigationManager Nav
 
 <PageTitle>Wishlist · Amiki</PageTitle>
 
@@ -37,17 +39,21 @@ else
             <span class="stat-label">
                 Wishlist money
                 <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Class="wish-fund-edit"
-                               aria-label="Set wishlist money" OnClick="() => Actions.SetFundAsync(Summary.Balance)" />
+                               aria-label="Set wishlist money" OnClick="Actions.SetFundAsync" />
             </span>
             @if (Store.HasFund)
             {
-                <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.Fund)</span>
-                <span class="muted wish-stat-note">@(Summary.FundExceedsBalance ? "More than your balance right now." : "Set aside from your balance for these.")</span>
+                <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.SetAside)</span>
+                <span class="muted wish-stat-note">@FundLine</span>
+                @if (Summary.Overcommitted)
+                {
+                    <span class="wish-warn">More than your accounts hold right now: only @Amiki.Domain.Finance.Money.Format(Math.Max(0, Summary.Balance)) of it is really there.</span>
+                }
             }
             else
             {
                 <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Class="wish-fund-start"
-                           OnClick="() => Actions.SetFundAsync(Summary.Balance)">Set some aside</MudButton>
+                           OnClick="Actions.SetFundAsync">Set some aside</MudButton>
                 <span class="muted wish-stat-note">Your wishlist is weighed against this, not your whole balance.</span>
             }
         </MudPaper>
@@ -78,6 +84,10 @@ else
                 {
                     <MudIcon Icon="@(IsShown(status) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
                 }
+                else if (status == WishStatus.Saving && Summary.TopAffordable > 0)
+                {
+                    <span class="wish-hint wish-covered">@TopLine</span>
+                }
                 else
                 {
                     <span class="muted wish-hint">@WishStatusLook.Hint(status)</span>
@@ -85,9 +95,11 @@ else
             </div>
             @if (!closed || IsShown(status))
             {
-                @foreach (var item in items)
+                @for (var i = 0; i < items.Count; i++)
                 {
-                    <WishItemRow @key="item.Id" Item="item" Available="Summary.Fund" />
+                    var item = items[i];
+                    <WishItemRow @key="item.Id" Item="item" Pool="Summary.Pool" OnPlan="PlanIt"
+                                 CanMove="status == WishStatus.Saving && items.Count > 1" IsFirst="i == 0" IsLast="i == items.Count - 1" />
                 }
             }
         </MudPaper>
@@ -98,7 +110,19 @@ else
     // Bought and Skipped start folded away: they're history, not the point of the page.
     private readonly HashSet<WishStatus> _shown = [];
 
-    private WishlistSummary Summary => new(Store.All, Store.Fund.Amount, Money.TotalBalance);
+    private WishlistSummary Summary => Actions.Summary;
+
+    private string FundLine => Summary.SavedInItems > 0
+        ? $"{Amiki.Domain.Finance.Money.Format(Summary.SavedInItems)} put toward items · {Amiki.Domain.Finance.Money.Format(Summary.Fund)} free"
+        : Store.Fund.IncomeShare is { } share ? $"Free to put toward anything · {share}% of each income adds to it" : "Free to put toward anything.";
+
+    private string TopLine => Summary.TopAffordable == Summary.SavingInOrder.Count
+        ? "Wishlist money covers all of these"
+        : $"Wishlist money covers your top {Summary.TopAffordable}";
+
+    // A What if plan for this purchase, opened right away.
+    private void PlanIt(WishItem item) =>
+        Nav.NavigateTo($"money/plan?plan={Plans.PlanPurchase(item.Name, item.Price, item.TargetDate).Id}");
 
     protected override void OnInitialized()
     {
