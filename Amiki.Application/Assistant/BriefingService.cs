@@ -7,6 +7,7 @@ using Amiki.Domain;
 using Amiki.Domain.Assistant;
 using Amiki.Domain.Finance;
 using Amiki.Domain.Ideas;
+using Amiki.Domain.Wishlist;
 using Microsoft.EntityFrameworkCore;
 
 namespace Amiki.Application.Assistant;
@@ -131,7 +132,12 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
             ? await db.WeeklyNotes.AsNoTracking().Where(n => n.WeekStart >= since && (n.WentWell != "" || n.ToChange != "")).Select(n => n.WeekStart).ToListAsync(ct)
             : [];
 
-        return new NudgeInput(today, tasks, ideas, accounts, spending, inbox, reviewed,
+        var cooledOff = s.SeeMoney
+            ? (await db.Wishlist.AsNoTracking().Where(w => w.Status == WishStatus.Want).ToListAsync(ct))
+                .Where(w => w.HasCooledOff(today)).Select(w => (w.Name, w.CreatedAt)).ToList()
+            : [];
+
+        return new NudgeInput(today, tasks, ideas, accounts, spending, inbox, reviewed, cooledOff,
             s.SeeTasks, s.SeeIdeas, s.SeeMoney, s.SeeInbox, s.SeeWeeklyNotes);
     }
 }

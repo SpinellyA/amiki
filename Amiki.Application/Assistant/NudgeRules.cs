@@ -49,6 +49,17 @@ public static class NudgeRules
                 nudges.Add(new("balance", $"{JoinNames(notChecked)} {(notChecked.Count == 1 ? "hasn't" : "haven't")} been checked against the real balance in 2+ weeks.", "money"));
 
             nudges.AddRange(Spending(d.SpendingByDay, today));
+
+            // Cooling off: wanted for a while now, so a good moment to decide (or let it go).
+            if (d.CooledOffWants.Count > 0)
+            {
+                var oldest = d.CooledOffWants.MinBy(w => w.Added);
+                var others = d.CooledOffWants.Count - 1;
+                nudges.Add(new("wishlist",
+                    $"You've wanted “{oldest.Name}” for {(today - oldest.Added.Date).Days} days. Still want it?"
+                    + (others > 0 ? $" ({Count(others, "more thing")} on your wishlist {(others == 1 ? "has" : "have")} waited a while too.)" : ""),
+                    "wishlist"));
+            }
         }
 
         if (d.SeeIdeas)

@@ -17,8 +17,9 @@ public class NudgeTests
         IReadOnlyList<(DateTime, string, decimal)>? spending = null,
         int inbox = 0,
         IReadOnlyList<DateTime>? reviewed = null,
+        IReadOnlyList<(string, DateTime)>? wants = null,
         bool seeAll = true) =>
-        new(today ?? Wednesday, tasks ?? [], ideas ?? [], accounts ?? [], spending ?? [], inbox, reviewed ?? [],
+        new(today ?? Wednesday, tasks ?? [], ideas ?? [], accounts ?? [], spending ?? [], inbox, reviewed ?? [], wants ?? [],
             seeAll, seeAll, seeAll, seeAll, seeAll);
 
     private static string[] Kinds(NudgeInput input) => NudgeRules.From(input).Select(n => n.Kind).ToArray();
@@ -27,6 +28,17 @@ public class NudgeTests
     public void A_quiet_day_has_no_nudges()
     {
         Assert.Empty(NudgeRules.From(Input()));
+    }
+
+    [Fact]
+    public void Things_wanted_for_a_while_get_a_still_want_it_question()
+    {
+        var nudge = NudgeRules.From(Input(wants: [("Thus", Wednesday.AddDays(-15)), ("Motor", Wednesday.AddDays(-30))])).Single();
+
+        Assert.Equal(("wishlist", "wishlist"), (nudge.Kind, nudge.Href));
+        Assert.StartsWith("You've wanted “Motor” for 30 days. Still want it?", nudge.Text);
+        Assert.Contains("1 more thing", nudge.Text);
+        Assert.Empty(NudgeRules.From(Input(wants: [("Motor", Wednesday.AddDays(-30))], seeAll: false))); // money is off
     }
 
     [Fact]
