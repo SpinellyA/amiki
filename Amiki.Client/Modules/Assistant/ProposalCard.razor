@@ -19,7 +19,7 @@
         default:
             <div class="proposal-actions">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => Runner.Do(Proposal)">Do it</MudButton>
-                @if (Proposal.Kind is ProposalKind.AddTask or ProposalKind.LogMoney)
+                @if (Proposal.Kind is ProposalKind.AddTask or ProposalKind.LogMoney or ProposalKind.AddWish)
                 {
                     <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="() => Runner.EditAsync(Proposal)">Edit</MudButton>
                 }
@@ -39,6 +39,7 @@
         ProposalKind.LogMoney => Categories.IconOf(Proposal.Category ?? "", Proposal.MoneyKind ?? TxKind.Expense),
         ProposalKind.AddIdea => Icons.Material.Outlined.Lightbulb,
         ProposalKind.Remember => Icons.Material.Outlined.Psychology,
+        ProposalKind.AddWish => Icons.Material.Outlined.FavoriteBorder,
         _ => Icons.Material.Outlined.Inbox,
     };
 }

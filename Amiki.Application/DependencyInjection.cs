@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IProposalTool, ProposeAddIdea>();
         services.AddScoped<IProposalTool, ProposeInboxNote>();
         services.AddScoped<IProposalTool, ProposeRemember>();
+        services.AddScoped<IProposalTool, ProposeAddWish>();
         return services;
     }
 }

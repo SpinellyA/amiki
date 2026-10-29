@@ -19,23 +19,25 @@ public sealed class WishlistActions(WishlistStore store, FinanceStore finance, F
     public WishlistSummary Summary => new(store.All, store.Fund.Amount, finance.TotalBalance);
 
     /// <summary>
-    /// Opens the item dialog on a copy (a new item when <paramref name="item"/> is null). A changed
-    /// price goes into the item's price history; if it dropped below what's put toward it, the
-    /// extra goes back to wishlist money.
+    /// Opens the item dialog on a copy: a new item when <paramref name="item"/> is null or not on
+    /// the list yet (e.g. filled in by Amiki). A changed price goes into the item's price history;
+    /// if it dropped below what's put toward it, the extra goes back to wishlist money.
+    /// Returns whether it was saved.
     /// </summary>
-    public async Task EditAsync(WishItem? item = null)
+    public async Task<bool> EditAsync(WishItem? item = null)
     {
-        var isNew = item is null;
-        var draft = item?.Clone() ?? new WishItem { Rank = NextRank() };
+        var isNew = item is null || store.Get(item.Id) is null;
+        var draft = item?.Clone() ?? new WishItem();
+        if (isNew) draft.Rank = NextRank();
         var parameters = new DialogParameters<WishItemDialog> { { d => d.Item, draft }, { d => d.IsNew, isNew } };
         var dialog = await dialogs.ShowAsync<WishItemDialog>(isNew ? "Add to wishlist" : "Edit item", parameters, Options);
-        if (await dialog.Result is not { Canceled: false, Data: WishItem edited }) return;
+        if (await dialog.Result is not { Canceled: false, Data: WishItem edited }) return false;
 
         if (isNew)
         {
             store.Upsert(edited);
             snackbar.Add($"Added “{edited.Name}”", Severity.Normal);
-            return;
+            return true;
         }
 
         var current = store.Get(edited.Id) ?? item!;
@@ -45,6 +47,7 @@ public sealed class WishlistActions(WishlistStore store, FinanceStore finance, F
         saved = saved.Repriced(edited.Price, DateTime.Now);
         var over = saved.Saved - saved.Price;
         store.Apply(over > 0 ? store.Fund.PutToward(saved, -over, DateTime.Now) : new(store.Fund, saved));
+        return true;
     }
 
     /// <summary>Opens "Put money toward it" (or take it back).</summary>

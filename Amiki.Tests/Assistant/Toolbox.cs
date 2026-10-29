@@ -19,6 +19,6 @@ internal static class Toolbox
     public static AssistantProposals Proposals() => new(
     [
         new ProposeAddTask(), new ProposeCompleteTask(null!), new ProposeLogMoney(null!),
-        new ProposeAddIdea(), new ProposeInboxNote(), new ProposeRemember(),
+        new ProposeAddIdea(), new ProposeInboxNote(), new ProposeRemember(), new ProposeAddWish(),
     ]);
 }

@@ -8,7 +8,7 @@ namespace Amiki.Domain.Assistant;
 /// tasks. It's only a suggestion: the app makes the change when you tap "Do it", the same way
 /// your own taps do (so it's audited and can be undone).
 /// </summary>
-/// <param name="Title">Task title, transaction note, idea text, inbox note, or the task to finish.</param>
+/// <param name="Title">Task title, transaction note, idea text, inbox note, wishlist item, or the task to finish.</param>
 /// <param name="TaskId">For <see cref="ProposalKind.CompleteTask"/>: which task.</param>
 public sealed record AssistantProposal(
     Guid Id,
@@ -39,6 +39,7 @@ public sealed record AssistantProposal(
         ProposalKind.AddIdea => Join($"Save idea “{Title}”", Tags is { Count: > 0 } tags ? string.Join(" ", tags.Select(t => "#" + t)) : null),
         ProposalKind.CompleteTask => $"Mark “{Title}” as done",
         ProposalKind.Remember => $"Remember: “{Title}”",
+        ProposalKind.AddWish => Join($"Add “{Title}” to your wishlist", Amount is > 0 ? Money.Format(Amount.Value) : null),
         _ => $"Add to Inbox: “{Title}”",
     };
 

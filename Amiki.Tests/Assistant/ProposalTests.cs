@@ -14,7 +14,7 @@ public class ProposalTests
     {
         var proposals = Toolbox.Proposals();
 
-        Assert.Equal(["propose_add_task", "propose_complete_task", "propose_log_money", "propose_add_idea", "propose_inbox_note", "propose_remember"],
+        Assert.Equal(["propose_add_task", "propose_complete_task", "propose_log_money", "propose_add_idea", "propose_inbox_note", "propose_remember", "propose_add_wish"],
             proposals.For(new AssistantSettings()).Select(t => t.Name));
         Assert.Empty(proposals.For(new AssistantSettings { CanPropose = false }));
         Assert.DoesNotContain(proposals.For(new AssistantSettings { SeeMoney = false }), t => t.Area == AssistantArea.Money);
@@ -30,6 +30,17 @@ public class ProposalTests
 
         Assert.Equal((ProposalKind.AddTask, Today, "cmsc125"), (p.Kind, p.Due!.Value, p.Project));
         Assert.Equal(ProposalStatus.Waiting, p.Status);
+    }
+
+    [Fact]
+    public async Task A_wishlist_suggestion_carries_the_name_and_price()
+    {
+        var p = await Toolbox.Proposals().ProposeAsync(new ToolCall("propose_add_wish",
+            new() { ["name"] = "Wireless mouse", ["price"] = 1200 }), Today, CancellationToken.None);
+
+        Assert.Equal((ProposalKind.AddWish, "Wireless mouse", 1200m), (p.Kind, p.Title, p.Amount!.Value));
+        Assert.Equal("Add “Wireless mouse” to your wishlist · ₱1,200", p.Describe());
+        Assert.DoesNotContain(Toolbox.Proposals().For(new AssistantSettings { SeeMoney = false }), t => t.Name == "propose_add_wish");
     }
 
     [Fact]

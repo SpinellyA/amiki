@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Amiki.Application.Assistant.Tools;
@@ -34,9 +35,17 @@ public sealed class ToolArguments(JsonObject args)
 
     public bool Flag(string key) => args[key] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
 
-    public int? Number(string key) => args[key] is JsonValue v && v.TryGetValue<int>(out var n) ? n : null;
+    public int? Number(string key) => Amount(key) is { } d && d == Math.Floor(d) && d is >= int.MinValue and <= int.MaxValue ? (int)d : null;
 
-    public decimal? Amount(string key) => args[key] is JsonValue v && v.TryGetValue<decimal>(out var d) ? d : null;
+    /// <summary>A number, however the model wrote it: 1200, 1200.5, or "1,200" as text.</summary>
+    public decimal? Amount(string key) => args[key] switch
+    {
+        JsonValue v when v.GetValueKind() == JsonValueKind.Number =>
+            decimal.TryParse(v.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : null,
+        JsonValue v when v.TryGetValue<string>(out var s) =>
+            decimal.TryParse(s.Replace(",", "").Replace("₱", "").Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : null,
+        _ => null,
+    };
 
     public IReadOnlyList<string> TextList(string key) =>
         args[key] is JsonArray array

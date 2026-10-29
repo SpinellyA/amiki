@@ -2,6 +2,7 @@ using Amiki.Modules.Finance;
 using Amiki.Modules.Ideas;
 using Amiki.Modules.Inbox;
 using Amiki.Modules.Tasks;
+using Amiki.Modules.Wishlist;
 using MudBlazor;
 
 namespace Amiki.Modules.Assistant;
@@ -13,7 +14,7 @@ namespace Amiki.Modules.Assistant;
 /// </summary>
 public sealed class ProposalRunner(
     ChatSession chat, TaskStore tasks, TaskActions taskActions, FinanceStore money, FinanceActions moneyActions,
-    IdeaStore ideas, InboxStore inbox, AssistantSettingsStore settings, ISnackbar snackbar)
+    IdeaStore ideas, InboxStore inbox, AssistantSettingsStore settings, WishlistStore wishlist, WishlistActions wishlistActions, ISnackbar snackbar)
 {
     /// <summary>Does it as suggested.</summary>
     public void Do(AssistantProposal p)
@@ -26,6 +27,7 @@ public sealed class ProposalRunner(
             ProposalKind.CompleteTask => CompleteTask(p),
             ProposalKind.AddInboxNote => AddInboxNote(p),
             ProposalKind.Remember => Remember(p),
+            ProposalKind.AddWish => AddWish(p),
             _ => null,
         };
         if (undo is null) return;
@@ -44,13 +46,14 @@ public sealed class ProposalRunner(
         });
     }
 
-    /// <summary>Opens the usual dialog filled in from the suggestion, for tasks and money; the rest just happen.</summary>
+    /// <summary>Opens the usual dialog filled in from the suggestion, for tasks, money and the wishlist; the rest just happen.</summary>
     public async Task EditAsync(AssistantProposal p)
     {
         var saved = p.Kind switch
         {
             ProposalKind.AddTask => await taskActions.EditAsync(TaskFrom(p)),
             ProposalKind.LogMoney => await moneyActions.EditAsync(TransactionFrom(p)),
+            ProposalKind.AddWish => await wishlistActions.EditAsync(WishFrom(p)),
             _ => false,
         };
         if (saved) chat.SetStatus(p.Id, ProposalStatus.Done);
@@ -95,6 +98,13 @@ public sealed class ProposalRunner(
         };
     }
 
+    private Action AddWish(AssistantProposal p)
+    {
+        var item = WishFrom(p);
+        wishlist.Upsert(item);
+        return () => wishlist.Remove(item);
+    }
+
     private Action AddInboxNote(AssistantProposal p)
     {
         var item = new InboxItem { Text = p.Title };
@@ -120,6 +130,8 @@ public sealed class ProposalRunner(
 
     private static TaskItem TaskFrom(AssistantProposal p) =>
         new() { Title = p.Title, Due = p.Due ?? DateTime.Today, Project = p.Project, Priority = p.Priority };
+
+    private static WishItem WishFrom(AssistantProposal p) => new() { Name = p.Title, Price = p.Amount ?? 0 };
 
     private static Transaction TransactionFrom(AssistantProposal p) => new()
     {
