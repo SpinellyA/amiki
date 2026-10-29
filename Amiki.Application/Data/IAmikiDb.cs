@@ -7,6 +7,7 @@ using Amiki.Domain.Inbox;
 using Amiki.Domain.People;
 using Amiki.Domain.Review;
 using Amiki.Domain.Tasks;
+using Amiki.Domain.Wishlist;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -36,6 +37,7 @@ public interface IAmikiDb
     DbSet<DiaryEntry> Diary { get; }
     DbSet<AssistantSettings> AssistantSettings { get; }
     DbSet<DailyBriefing> DailyBriefings { get; }
+    DbSet<WishItem> Wishlist { get; }
 
     DbSet<T> Set<T>() where T : class;
 

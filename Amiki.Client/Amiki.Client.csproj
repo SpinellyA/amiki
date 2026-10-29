@@ -36,6 +36,7 @@
     <Using Include="Amiki.Domain.People" />
     <Using Include="Amiki.Domain.Review" />
     <Using Include="Amiki.Domain.Tasks" />
+    <Using Include="Amiki.Domain.Wishlist" />
     <Using Include="Amiki.Contracts" />
     <Using Include="Amiki.Contracts.Assistant" />
     <Using Include="Amiki.Contracts.People" />

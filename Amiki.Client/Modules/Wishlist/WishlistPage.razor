@@ -1,0 +1,109 @@
+@page "/wishlist"
+@implements IDisposable
+@inject WishlistStore Store
+@inject FinanceStore Money
+@inject WishlistActions Actions
+
+<PageTitle>Wishlist · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Wishlist</MudText>
+        <MudText Typo="Typo.body2" Class="muted">Things you'd like to buy, against the money you actually have.</MudText>
+    </div>
+    <div class="head-actions">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => Actions.EditAsync()">Add item</MudButton>
+    </div>
+</div>
+
+@if (Store.All.Count == 0)
+{
+    <div class="empty">
+        <MudIcon Icon="@Icons.Material.Outlined.FavoriteBorder" Size="Size.Large" />
+        <MudText Typo="Typo.body1">Nothing on your wishlist yet.</MudText>
+        <MudText Typo="Typo.body2">Add the things you're eyeing, with their prices, and see what they'd do to your balance.</MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => Actions.EditAsync()">Add the first one</MudButton>
+    </div>
+}
+else
+{
+    <div class="wish-summary">
+        <MudPaper Outlined="true" Class="wish-stat">
+            <span class="stat-label">Total balance</span>
+            <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.Balance)</span>
+        </MudPaper>
+        <MudPaper Outlined="true" Class="wish-stat">
+            <span class="stat-label">Saving for</span>
+            <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.SavingFor)</span>
+            <span class="muted wish-stat-note">@AfterLine(Summary.AfterSaving)</span>
+        </MudPaper>
+        <MudPaper Outlined="true" Class="wish-stat">
+            <span class="stat-label">Everything open</span>
+            <span class="wish-stat-value">@Amiki.Domain.Finance.Money.Format(Summary.SavingFor + Summary.Wanted)</span>
+            <span class="muted wish-stat-note">@AfterLine(Summary.AfterEverything)</span>
+        </MudPaper>
+    </div>
+
+    @foreach (var status in WishStatusLook.Order)
+    {
+        var items = Store.InStatus(status).ToList();
+        if (items.Count == 0) continue;
+        var closed = status is WishStatus.Bought or WishStatus.Skipped;
+        <MudPaper Outlined="true" Class="widget wish-section">
+            <div class="widget-head" role="@(closed ? "button" : null)" @onclick="() => Toggle(status, closed)">
+                <MudIcon Icon="@WishStatusLook.Icon(status)" Size="Size.Small" />
+                <span>@WishStatusLook.Name(status)</span>
+                <span class="muted wish-count">@items.Count · @Amiki.Domain.Finance.Money.Format(items.Sum(i => i.Price))</span>
+                <MudSpacer />
+                @if (closed)
+                {
+                    <MudIcon Icon="@(IsShown(status) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+                }
+                else
+                {
+                    <span class="muted wish-hint">@WishStatusLook.Hint(status)</span>
+                }
+            </div>
+            @if (!closed || IsShown(status))
+            {
+                @foreach (var item in items)
+                {
+                    <WishItemRow @key="item.Id" Item="item" Balance="Summary.Balance" />
+                }
+            }
+        </MudPaper>
+    }
+}
+
+@code {
+    // Bought and Skipped start folded away: they're history, not the point of the page.
+    private readonly HashSet<WishStatus> _shown = [];
+
+    private WishlistSummary Summary => new(Store.All, Money.TotalBalance);
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Money.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Money.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private bool IsShown(WishStatus status) => _shown.Contains(status);
+
+    private void Toggle(WishStatus status, bool closed)
+    {
+        if (!closed) return;
+        if (!_shown.Remove(status)) _shown.Add(status);
+    }
+
+    private static string AfterLine(Affordability after) => after.CanAfford
+        ? $"{Amiki.Domain.Finance.Money.Format(after.LeftAfter)} left if you buy it all"
+        : $"{Amiki.Domain.Finance.Money.Format(after.Short)} short";
+}

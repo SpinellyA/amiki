@@ -1,0 +1,53 @@
+@* Add or edit a wishlist item. Works on a copy, so Cancel leaves the stored one alone. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="Item.Name" Label="What is it?" Variant="Variant.Outlined" AutoFocus="true"
+                      MaxLength="WishItem.MaxName" Placeholder="e.g. Drawing tablet" />
+        <MudNumericField T="decimal" @bind-Value="Item.Price" Label="Price" Variant="Variant.Outlined" Min="0" Class="mt-3"
+                         Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true" />
+        <MudSelect T="WishStatus" @bind-Value="Item.Status" Label="Status" Variant="Variant.Outlined" Class="mt-3">
+            @foreach (var status in WishStatusLook.Order.Where(s => s != WishStatus.Bought || Item.Status == WishStatus.Bought))
+            {
+                <MudSelectItem Value="status">@WishStatusLook.Name(status)</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField T="string" @bind-Value="Item.Link" Label="Link (optional)" Variant="Variant.Outlined" Class="mt-3"
+                      InputType="InputType.Url" Placeholder="https://…" MaxLength="WishItem.MaxLink" />
+        <MudTextField T="string" @bind-Value="Item.Note" Label="Note (optional)" Variant="Variant.Outlined" Lines="2" Class="mt-3"
+                      MaxLength="WishItem.MaxNote" Placeholder="Which model, where it's cheapest, why you want it…" />
+        @if (Problem is { } problem)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@problem</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Untouched || Problem is not null" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public WishItem Item { get; set; } = default!;
+
+    // A fresh, empty dialog doesn't start with a warning; it just can't be saved yet.
+    private bool Untouched => string.IsNullOrWhiteSpace(Item.Name) && Item.Price == 0;
+
+    private string? Problem => Untouched ? null : Clean().Validate();
+
+    private WishItem Clean()
+    {
+        var item = Item.Clone();
+        item.Name = item.Name.Trim();
+        item.Link = string.IsNullOrWhiteSpace(item.Link) ? null : item.Link.Trim();
+        item.Note = (item.Note ?? "").Trim();
+        return item;
+    }
+
+    private void Save()
+    {
+        var item = Clean();
+        if (item.Validate() is null) Dialog.Close(DialogResult.Ok(item));
+    }
+}

@@ -13,7 +13,7 @@ internal static class Toolbox
     public static AssistantTools Lookups() => new(
     [
         new ListTasksTool(null!), new ListIdeasTool(null!), new AccountBalancesTool(null!, null!), new MoneySummaryTool(null!),
-        new SpendingByPeriodTool(null!), new ListTransactionsTool(null!), new ListInboxTool(null!), new WeeklyNotesTool(null!),
+        new SpendingByPeriodTool(null!), new ListTransactionsTool(null!), new ListInboxTool(null!), new WeeklyNotesTool(null!), new ListWishlistTool(null!, null!),
     ]);
 
     public static AssistantProposals Proposals() => new(

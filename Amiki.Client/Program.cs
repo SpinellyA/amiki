@@ -11,6 +11,7 @@ using Amiki.Modules.Inbox;
 using Amiki.Modules.Pomodoro;
 using Amiki.Modules.Review;
 using Amiki.Modules.Tasks;
+using Amiki.Modules.Wishlist;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -44,6 +45,7 @@ builder.Services.AddInboxModule();
 builder.Services.AddTasksModule();
 builder.Services.AddIdeasModule();
 builder.Services.AddFinanceModule();
+builder.Services.AddWishlistModule();
 builder.Services.AddDiaryModule();
 builder.Services.AddReviewModule();
 builder.Services.AddPomodoroModule();

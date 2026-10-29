@@ -10,6 +10,7 @@ using Amiki.Domain.Ideas;
 using Amiki.Domain.Inbox;
 using Amiki.Domain.Review;
 using Amiki.Domain.Tasks;
+using Amiki.Domain.Wishlist;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -50,6 +51,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
     public DbSet<DiaryEntry> Diary => Set<DiaryEntry>();
     public DbSet<AssistantSettings> AssistantSettings => Set<AssistantSettings>();
     public DbSet<DailyBriefing> DailyBriefings => Set<DailyBriefing>();
+    public DbSet<WishItem> Wishlist => Set<WishItem>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -82,8 +84,18 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
         PerPerson<DiaryEntry>(model);
         PerPerson<AssistantSettings>(model);
         PerPerson<DailyBriefing>(model);
+        PerPerson<WishItem>(model);
 
         model.Entity<InboxItem>().ToTable("inbox_items");
+
+        model.Entity<WishItem>(wish =>
+        {
+            wish.ToTable("wish_items");
+            wish.Property(w => w.Name).HasMaxLength(WishItem.MaxName);
+            wish.Property(w => w.Link).HasMaxLength(WishItem.MaxLink);
+            wish.Property(w => w.Note).HasMaxLength(WishItem.MaxNote);
+            wish.Property(w => w.Status).HasConversion<string>().HasMaxLength(16);
+        });
 
         model.Entity<TaskItem>(task =>
         {

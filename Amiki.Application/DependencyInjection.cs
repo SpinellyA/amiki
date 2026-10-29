@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<ILookupTool, ListTransactionsTool>();
         services.AddScoped<ILookupTool, ListInboxTool>();
         services.AddScoped<ILookupTool, WeeklyNotesTool>();
+        services.AddScoped<ILookupTool, ListWishlistTool>();
 
         // What she can suggest. Add one: write an IProposalTool and list it here.
         services.AddScoped<AssistantProposals>();

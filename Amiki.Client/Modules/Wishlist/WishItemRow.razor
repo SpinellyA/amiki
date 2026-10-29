@@ -1,0 +1,57 @@
+@* One wishlist item: name, price, what it does to your balance, and what you can do with it. *@
+@inject WishlistActions Actions
+
+<div class="wish-row @(Item.IsOpen ? "" : "wish-done")">
+    <div class="wish-main">
+        <div class="wish-name">
+            @Item.Name
+            @if (Item.Link is { } link)
+            {
+                <MudIconButton Href="@link" Target="_blank" Rel="noopener noreferrer" Icon="@Icons.Material.Outlined.OpenInNew"
+                               Size="Size.Small" aria-label="@($"Open the link for {Item.Name}")" Class="wish-link" />
+            }
+        </div>
+        @if (Item.Note.Length > 0)
+        {
+            <div class="muted wish-note">@Item.Note</div>
+        }
+        @if (Item.IsOpen)
+        {
+            var afford = Item.Against(Balance);
+            <div class="wish-afford @(afford.CanAfford ? "ok" : "short")">
+                <div class="wish-meter" aria-hidden="true"><span style="width: @((afford.Covered * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
+                <span>@(afford.CanAfford
+                    ? $"You can afford it · {Money.Format(afford.LeftAfter)} left after"
+                    : $"{Money.Format(afford.Short)} short of your balance")</span>
+            </div>
+        }
+        else if (Item.BoughtAt is { } bought)
+        {
+            <div class="muted wish-note">Bought @When.Day(bought).ToLowerInvariant()@(Item.TransactionId is null ? "" : " · logged in Money")</div>
+        }
+    </div>
+    <div class="wish-price">@Money.Format(Item.Price)</div>
+    <div class="wish-actions">
+        @if (Item.IsOpen)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.ShoppingBag"
+                       OnClick="() => Actions.BuyAsync(Item)">Bought it</MudButton>
+        }
+        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                 aria-label="@($"More for {Item.Name}")">
+            <MudMenuItem Icon="@Icons.Material.Outlined.Edit" OnClick="() => Actions.EditAsync(Item)">Edit</MudMenuItem>
+            @foreach (var status in WishStatusLook.Order.Where(s => s != Item.Status && s != WishStatus.Bought))
+            {
+                <MudMenuItem Icon="@WishStatusLook.Icon(status)" OnClick="() => Actions.SetStatus(Item, status)">Move to @WishStatusLook.Name(status)</MudMenuItem>
+            }
+            <MudMenuItem Icon="@Icons.Material.Outlined.Delete" OnClick="() => Actions.DeleteWithUndo(Item)">Remove</MudMenuItem>
+        </MudMenu>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public WishItem Item { get; set; } = default!;
+
+    /// <summary>Your total balance across accounts right now.</summary>
+    [Parameter] public decimal Balance { get; set; }
+}
