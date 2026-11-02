@@ -18,8 +18,9 @@ public class NudgeTests
         int inbox = 0,
         IReadOnlyList<DateTime>? reviewed = null,
         IReadOnlyList<(string, DateTime)>? wants = null,
+        IReadOnlyList<BudgetPace>? budgets = null,
         bool seeAll = true) =>
-        new(today ?? Wednesday, tasks ?? [], ideas ?? [], accounts ?? [], spending ?? [], inbox, reviewed ?? [], wants ?? [],
+        new(today ?? Wednesday, tasks ?? [], ideas ?? [], accounts ?? [], spending ?? [], inbox, reviewed ?? [], wants ?? [], budgets ?? [],
             seeAll, seeAll, seeAll, seeAll, seeAll);
 
     private static string[] Kinds(NudgeInput input) => NudgeRules.From(input).Select(n => n.Kind).ToArray();
@@ -28,6 +29,21 @@ public class NudgeTests
     public void A_quiet_day_has_no_nudges()
     {
         Assert.Empty(NudgeRules.From(Input()));
+    }
+
+    [Fact]
+    public void A_budget_gets_a_heads_up_only_when_its_going_over()
+    {
+        var october = new MoneyPeriod(PeriodLength.Month, new DateTime(2026, 10, 1));
+
+        var atRisk = NudgeRules.From(Input(budgets: [new BudgetPace(3000, 2500, october, Wednesday)])).Single();
+        Assert.Equal("budget", atRisk.Kind);
+        Assert.Equal("At this rate you'll spend about ₱3,690 by Oct 31, over October's ₱3,000 budget. ₱45 a day keeps you within it.", atRisk.Text);
+
+        var over = NudgeRules.From(Input(budgets: [new BudgetPace(3000, 3200, october, Wednesday)])).Single();
+        Assert.Equal("You're ₱200 over October's ₱3,000 budget.", over.Text);
+
+        Assert.Empty(NudgeRules.From(Input(budgets: [new BudgetPace(3000, 1000, october, Wednesday)]))); // on track: quiet
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using Amiki.Domain;
 using System.Globalization;
 using Amiki.Domain.Assistant;
+using Amiki.Domain.Finance;
 
 namespace Amiki.Application.Assistant;
 
@@ -48,6 +49,7 @@ public static class NudgeRules
             if (notChecked.Count > 0)
                 nudges.Add(new("balance", $"{JoinNames(notChecked)} {(notChecked.Count == 1 ? "hasn't" : "haven't")} been checked against the real balance in 2+ weeks.", "money"));
 
+            nudges.AddRange(d.Budgets.Select(Budget).OfType<Nudge>());
             nudges.AddRange(Spending(d.SpendingByDay, today));
 
             // Cooling off: wanted for a while now, so a good moment to decide (or let it go).
@@ -97,6 +99,21 @@ public static class NudgeRules
                     ? $"{c.Category}: {Peso(c.Now)} this week, more than you usually spend there."
                     : $"{c.Category}: {Peso(c.Now)} this week, usually about {Peso(c.Usual)}.",
                 "money"));
+    }
+
+    /// <summary>A heads-up when a budget is already gone, or on pace to be by the end; nothing while on track.</summary>
+    internal static Nudge? Budget(BudgetPace pace)
+    {
+        var which = pace.Period.Length == PeriodLength.Week ? "this week's" : $"{pace.Period.Start:MMMM}'s";
+        return pace.Status switch
+        {
+            BudgetStatus.Over => new("budget", $"You're {Peso(-pace.Left)} over {which} {Peso(pace.Limit)} budget.", "money"),
+            BudgetStatus.AtRisk => new("budget",
+                $"At this rate you'll spend about {Peso(pace.Projected)} by {pace.Period.End.AddDays(-1):MMM d}, over {which} {Peso(pace.Limit)} budget."
+                + (pace.PerDayLeft > 0 ? $" {Peso(pace.PerDayLeft)} a day keeps you within it." : ""),
+                "money"),
+            _ => null,
+        };
     }
 
     private static string Count(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";

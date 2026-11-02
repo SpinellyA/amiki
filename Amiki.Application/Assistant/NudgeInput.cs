@@ -16,4 +16,5 @@ public sealed record NudgeInput(
     int InboxCount,
     IReadOnlyList<DateTime> ReviewedWeeks,
     IReadOnlyList<(string Name, DateTime Added)> CooledOffWants,
+    IReadOnlyList<Amiki.Domain.Finance.BudgetPace> Budgets,
     bool SeeTasks, bool SeeIdeas, bool SeeMoney, bool SeeInbox, bool SeeWeeklyNotes);

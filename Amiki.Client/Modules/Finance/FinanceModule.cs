@@ -17,12 +17,15 @@ public static class FinanceModule
         services.AddSingleton<CategoryStore>();
         services.AddSingleton<FinanceStore>();
         services.AddSingleton<PlanStore>();
+        services.AddSingleton<BudgetStore>();
         // Loaded when the History page opens, not on every background refresh.
         services.AddSingleton<AuditStore>();
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<CategoryStore>());
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<FinanceStore>());
         services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<PlanStore>());
+        services.AddSingleton<Amiki.Data.IRemoteStore>(sp => sp.GetRequiredService<BudgetStore>());
         services.AddScoped<FinanceActions>();
+        services.AddScoped<BudgetActions>();
         services.AddSingleton(new ModuleInfo(
             Name: "Money",
             Icon: Icons.Material.Outlined.AccountBalanceWallet,

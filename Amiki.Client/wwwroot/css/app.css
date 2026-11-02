@@ -2430,3 +2430,24 @@ html, body {
 .wish-widget-name { font-weight: 600; margin-bottom: 0.4rem; }
 .wish-widget-meter { width: 100%; height: 6px; margin-bottom: 0.4rem; }
 .wish-widget-meter span { background: var(--mud-palette-primary); }
+
+/* Budgets */
+.budget-card { padding: 0.8rem 1rem; display: flex; flex-direction: column; gap: 0.45rem; --budget: var(--mud-palette-success); }
+.budget-atrisk { --budget: var(--mud-palette-warning); }
+.budget-over { --budget: var(--mud-palette-error); }
+.budget-upcoming { --budget: var(--mud-palette-text-secondary); }
+.budget-head { display: flex; align-items: center; justify-content: space-between; margin: -0.4rem -0.5rem -0.4rem 0; }
+.budget-figures { display: flex; align-items: baseline; gap: 0.4rem; }
+.budget-spent { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.budget-left { font-weight: 500; color: var(--budget); font-variant-numeric: tabular-nums; }
+.budget-bar { position: relative; height: 8px; border-radius: 4px; background: var(--mud-palette-lines-default); }
+.budget-used { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--budget); }
+.budget-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--mud-palette-text-primary); opacity: 0.7; }
+.budget-pace { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.85rem; }
+.budget-pace .mud-icon-root { color: var(--budget); flex-shrink: 0; margin-top: 1px; }
+.budget-none { margin: -0.5rem 0 -0.25rem; }
+.budget-line { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 1rem 0.5rem; font-size: 0.8rem; color: var(--mud-palette-text-secondary); --budget: var(--mud-palette-success); }
+.budget-line.budget-atrisk { --budget: var(--mud-palette-warning); }
+.budget-line.budget-over { --budget: var(--mud-palette-error); }
+.budget-line span:nth-child(2) { color: var(--budget); }
+.budget-line-flag { color: var(--mud-palette-warning); }

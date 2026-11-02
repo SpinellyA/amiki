@@ -1,0 +1,84 @@
+@* The budget for the month or week on screen: spent against it, and whether you're on pace. *@
+@implements IDisposable
+@inject BudgetStore Budgets
+@inject FinanceStore Finance
+@inject BudgetActions Actions
+
+@if (Budgets.PaceFor(Period) is { } pace)
+{
+    <MudPaper Outlined="true" Class="@($"budget-card budget-{pace.Status.ToString().ToLowerInvariant()}")">
+        <div class="budget-head">
+            <span class="stat-label">Budget for @Period.Name</span>
+            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" aria-label="Change the budget" OnClick="() => Actions.SetAsync(Period)" />
+        </div>
+        <div class="budget-figures">
+            <span class="budget-spent">@Money.Format(pace.Spent)</span>
+            <span class="muted">of @Money.Format(pace.Limit)</span>
+            <MudSpacer />
+            <span class="budget-left">@(pace.Left >= 0 ? $"{Money.Format(pace.Left)} left" : $"{Money.Format(-pace.Left)} over")</span>
+        </div>
+        <div class="budget-bar" role="img" aria-label="@($"{Percent(pace.Used)} of the budget used, {Percent(pace.TimeGone)} of the {Unit} gone")">
+            <span class="budget-used" style="width: @Percent(Math.Min(1, pace.Used))"></span>
+            @if (pace.DaysGone > 0 && !pace.IsFinished)
+            {
+                <span class="budget-marker" style="left: @Percent(pace.TimeGone)" title="Where spending evenly would be by today"></span>
+            }
+        </div>
+        <div class="budget-pace">
+            <MudIcon Icon="@StatusIcon(pace.Status)" Size="Size.Small" />
+            <span>@PaceLine(pace)</span>
+        </div>
+    </MudPaper>
+}
+else
+{
+    <div class="budget-none">
+        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Speed"
+                   OnClick="() => Actions.SetAsync(Period)">Set a budget for @Period.Name</MudButton>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public MoneyPeriod Period { get; set; }
+
+    private string Unit => Period.Length == PeriodLength.Week ? "week" : "month";
+
+    protected override void OnInitialized()
+    {
+        Budgets.Changed += OnChanged;
+        Finance.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Budgets.Changed -= OnChanged;
+        Finance.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private string PaceLine(BudgetPace pace) => pace.Status switch
+    {
+        BudgetStatus.Upcoming => $"Starts {Period.Start:MMM d}: about {Money.Format(Math.Floor(pace.Limit / pace.DaysTotal))} a day.",
+        BudgetStatus.Over => pace.IsFinished
+            ? $"Ended {Money.Format(-pace.Left)} over budget."
+            : $"Over budget by {Money.Format(-pace.Left)}, with {Days(pace.DaysLeft)} to go.",
+        BudgetStatus.AtRisk => $"At this rate you'll spend about {Money.Format(pace.Projected)} by {Period.End.AddDays(-1):MMM d}, "
+                               + $"{Money.Format(pace.Projected - pace.Limit)} over. {Money.Format(pace.PerDayLeft)} a day keeps you within it.",
+        _ => pace.IsFinished
+            ? $"Stayed within it, with {Money.Format(pace.Left)} to spare."
+            : $"On track. {Money.Format(pace.PerDayLeft)} a day for the {Days(pace.DaysLeft)} left keeps you within it.",
+    };
+
+    private static string StatusIcon(BudgetStatus status) => status switch
+    {
+        BudgetStatus.Over => Icons.Material.Outlined.Error,
+        BudgetStatus.AtRisk => Icons.Material.Outlined.Warning,
+        BudgetStatus.Upcoming => Icons.Material.Outlined.Schedule,
+        _ => Icons.Material.Outlined.CheckCircle,
+    };
+
+    private static string Days(int n) => n == 1 ? "1 day" : $"{n} days";
+
+    private static string Percent(double share) => (share * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+}

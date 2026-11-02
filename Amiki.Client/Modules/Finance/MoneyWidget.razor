@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject FinanceStore Store
+@inject BudgetStore Budgets
 
 <MudPaper Outlined="true" Class="widget">
     <div class="widget-head">
@@ -16,13 +17,37 @@
         <div class="stat"><span class="stat-value">@Money.Format(Store.TotalBalance)</span><span class="stat-label">balance</span></div>
         <div class="stat"><span class="stat-value">@Money.Format(spent)</span><span class="stat-label">spent in @DateTime.Today.ToString("MMMM")</span></div>
     </div>
+    @foreach (var pace in BudgetPaces)
+    {
+        <div class="@($"budget-line budget-{pace.Status.ToString().ToLowerInvariant()}")">
+            <span>@(pace.Period.Length == PeriodLength.Week ? "This week" : "This month"):</span>
+            <span>@(pace.Left >= 0 ? $"{Money.Format(pace.Left)} of {Money.Format(pace.Limit)} budget left" : $"{Money.Format(-pace.Left)} over budget")</span>
+            @if (pace.Status == BudgetStatus.AtRisk)
+            {
+                <span class="budget-line-flag">on pace to go over</span>
+            }
+        </div>
+    }
     <div class="px-4 pb-2">
         <CategoryBars Transactions="month" Max="4" />
     </div>
 </MudPaper>
 
 @code {
-    protected override void OnInitialized() => Store.Changed += OnChanged;
-    public void Dispose() => Store.Changed -= OnChanged;
+    private IEnumerable<BudgetPace> BudgetPaces =>
+        new[] { PeriodLength.Week, PeriodLength.Month }.Select(l => Budgets.PaceFor(MoneyPeriod.Current(l))).OfType<BudgetPace>();
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += OnChanged;
+        Budgets.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Budgets.Changed -= OnChanged;
+    }
+
     private void OnChanged() => InvokeAsync(StateHasChanged);
 }

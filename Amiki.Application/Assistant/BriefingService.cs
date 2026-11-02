@@ -1,6 +1,7 @@
 using Amiki.Contracts.Assistant;
 using Amiki.Application.People;
 using Amiki.Application.Data;
+using Amiki.Application.Finance;
 using System.Globalization;
 using System.Text;
 using Amiki.Domain;
@@ -17,7 +18,7 @@ namespace Amiki.Application.Assistant;
 /// written by the model once a day and saved. Only areas she's allowed to see go in; never the
 /// diary. If the model is off or busy, the nudges still show.
 /// </summary>
-public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentUser user, BriefingGate gate)
+public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentUser user, BriefingGate gate, BudgetCheck budgets)
 {
     public async Task<Briefing> GetAsync(DateTime now, bool rewrite, CancellationToken ct)
     {
@@ -137,7 +138,9 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
                 .Where(w => w.HasCooledOff(today)).Select(w => (w.Name, w.CreatedAt)).ToList()
             : [];
 
-        return new NudgeInput(today, tasks, ideas, accounts, spending, inbox, reviewed, cooledOff,
+        var budgetPaces = s.SeeMoney ? await budgets.NowAsync(today, ct) : [];
+
+        return new NudgeInput(today, tasks, ideas, accounts, spending, inbox, reviewed, cooledOff, budgetPaces,
             s.SeeTasks, s.SeeIdeas, s.SeeMoney, s.SeeInbox, s.SeeWeeklyNotes);
     }
 }

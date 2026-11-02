@@ -39,6 +39,7 @@ public interface IAmikiDb
     DbSet<DailyBriefing> DailyBriefings { get; }
     DbSet<WishItem> Wishlist { get; }
     DbSet<WishlistFund> WishlistFunds { get; }
+    DbSet<Budget> Budgets { get; }
 
     DbSet<T> Set<T>() where T : class;
 

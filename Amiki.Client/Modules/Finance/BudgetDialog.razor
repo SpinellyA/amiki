@@ -1,0 +1,46 @@
+@* Set (or change, or turn off) the budget for one month or week. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="muted mb-3">
+            How much you mean to spend in @Period.Name, out of your @Money.Format(Balance) balance. Everything you spend counts,
+            like on the Money page (balance fixes don't).
+        </MudText>
+        <MudNumericField T="decimal" @bind-Value="Amount" Label="@($"Budget for {Period.Name}")" Variant="Variant.Outlined" Min="0" AutoFocus="true"
+                         Adornment="Adornment.Start" AdornmentText="₱" HideSpinButtons="true"
+                         HelperText="@(Amount > 0 ? $"About {Money.Format(Math.Floor(Amount / Days))} a day" : null)" />
+        @if (Amount > Balance)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">That's more than your whole balance right now.</MudAlert>
+        }
+        <MudSwitch T="bool" @bind-Value="Repeats" Color="Color.Primary" Class="mt-4"
+                   Label="@($"Keep it for the {Unit}s after, until I change it")" />
+    </DialogContent>
+    <DialogActions>
+        @if (HasBudget)
+        {
+            <MudButton Color="Color.Error" OnClick="() => Dialog.Close(DialogResult.Ok(Choice.TurnOff))" Class="mr-auto">No budget from here on</MudButton>
+        }
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Amount <= 0 || Amount > Budget.MaxAmount"
+                   OnClick="() => Dialog.Close(DialogResult.Ok(new Choice(Amount, Repeats)))">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>What was picked. An amount of zero turns the budget off from this period on.</summary>
+    public sealed record Choice(decimal Amount, bool Repeats)
+    {
+        public static readonly Choice TurnOff = new(0, true);
+    }
+
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public MoneyPeriod Period { get; set; }
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public bool Repeats { get; set; } = true;
+    [Parameter] public decimal Balance { get; set; }
+    [Parameter] public bool HasBudget { get; set; }
+
+    private string Unit => Period.Length == PeriodLength.Week ? "week" : "month";
+    private int Days => (Period.End - Period.Start).Days;
+}

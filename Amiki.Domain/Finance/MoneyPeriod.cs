@@ -1,10 +1,9 @@
-using Amiki.Components;
-
-namespace Amiki.Modules.Finance;
+namespace Amiki.Domain.Finance;
 
 /// <summary>
-/// The stretch of time the Money page shows: a calendar month, or a Monday-to-Sunday week.
-/// <see cref="End"/> is the first day after it (not included).
+/// A stretch of money time: a calendar month, or a Monday-to-Sunday week. <see cref="End"/> is
+/// the first day after it (not included). On the server, use <see cref="Containing"/> with the
+/// server's clock, never <see cref="Current"/> (that's the device's today).
 /// </summary>
 public readonly record struct MoneyPeriod(PeriodLength Length, DateTime Start)
 {

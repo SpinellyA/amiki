@@ -224,6 +224,37 @@ namespace Amiki.Infrastructure.Data.Migrations
                     b.ToTable("balance_checks", (string)null);
                 });
 
+            modelBuilder.Entity("Amiki.Domain.Finance.Budget", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("Length")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<bool>("Repeats")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.ToTable("budgets", (string)null);
+                });
+
             modelBuilder.Entity("Amiki.Domain.Finance.Category", b =>
                 {
                     b.Property<Guid>("UserId")

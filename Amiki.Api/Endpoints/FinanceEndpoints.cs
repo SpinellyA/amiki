@@ -7,7 +7,7 @@ namespace Amiki.Api.Endpoints;
 /// <summary>
 /// Money. Every change to categories, transactions, transfers and balance checks is audited,
 /// and account and category names must be real ones (see the rules in Application/Finance).
-///   /api/categories, /api/transactions, /api/transfers, /api/balance-checks, /api/plans, /api/wishlist, /api/wishlist-fund
+///   /api/categories, /api/transactions, /api/transfers, /api/balance-checks, /api/plans, /api/budgets, /api/wishlist, /api/wishlist-fund
 ///   GET /api/accounts    your accounts
 ///   GET /api/audit       the money history, newest first (read-only)
 /// </summary>
@@ -20,6 +20,7 @@ public static class FinanceEndpoints
         api.MapEntity<Transfer>("transfers");
         api.MapEntity<BalanceCheck>("balance-checks");
         api.MapEntity<Plan>("plans");
+        api.MapEntity<Budget>("budgets");
         api.MapEntity<WishItem>("wishlist");
         api.MapEntity<WishlistFund>("wishlist-fund");
 
