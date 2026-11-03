@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Amiki.Domain;
 
 namespace Amiki.Domain.Finance;
@@ -17,6 +18,13 @@ public sealed class Transaction : IEntity
     public DateTime CreatedAt { get; init; } = DateTime.Now;
 
     public decimal Signed => Kind == TxKind.Income ? Amount : -Amount;
+
+    /// <summary>
+    /// Whether it counts in spending and income totals, charts and budgets. Everything does, except
+    /// corrections that raised a balance: the first check on each account sets its real starting
+    /// amount that way, which isn't income.
+    /// </summary>
+    public bool CountsInTotals => !Finance.Category.IsCorrection(Category) || Kind == TxKind.Expense;
 
     public Transaction Clone() => (Transaction)MemberwiseClone();
 

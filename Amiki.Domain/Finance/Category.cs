@@ -33,7 +33,10 @@ public sealed class Category : IEntity
 
     public static bool IsBuiltInName(string name) => name is OtherExpense or OtherIncome or Fees or BalanceFix;
 
-    /// <summary>Corrections are left out of spending/income totals and charts (they're still in the list and history).</summary>
+    /// <summary>
+    /// A balance-check correction. Not something you pick when logging; how it counts in totals is
+    /// up to <see cref="Transaction.CountsInTotals"/>.
+    /// </summary>
     public static bool IsCorrection(string name) => name == BalanceFix;
 
     public static string FallbackFor(TxKind kind) => kind == TxKind.Income ? OtherIncome : OtherExpense;

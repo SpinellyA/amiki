@@ -43,7 +43,7 @@
         @if (Entered.Any(e => e.Actual != Store.Balance(e.Account)))
         {
             <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
-                Differences are fixed with a "Balance fix" entry, kept out of your spending and income totals and shown in History.
+                Differences are fixed with a "Balance fix" entry. If there's less than Amiki thought, it counts as spending (money went somewhere you didn't log); if there's more, it isn't counted as income.
             </MudAlert>
         }
     </DialogContent>

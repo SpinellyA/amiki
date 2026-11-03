@@ -123,7 +123,7 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
             var checks = await db.BalanceChecks.AsNoTracking().GroupBy(c => c.Account).Select(g => new { Account = g.Key, Last = g.Max(c => c.CheckedAt) }).ToListAsync(ct);
             accounts = used.Order().Select(a => (a, checks.FirstOrDefault(c => c.Account == a)?.Last)).ToList();
             spending = (await db.Transactions.AsNoTracking()
-                    .Where(t => t.Kind == TxKind.Expense && t.Date >= since && t.Category != Category.BalanceFix)
+                    .Where(t => t.Kind == TxKind.Expense && t.Date >= since) // money found missing by a balance check counts too
                     .Select(t => new { t.Date, t.Category, t.Amount }).ToListAsync(ct))
                 .Select(t => (t.Date.Date, t.Category, t.Amount)).ToList();
         }

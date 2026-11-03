@@ -23,11 +23,12 @@ public sealed class Ledger(IEnumerable<Account> accounts, IEnumerable<Transactio
 
     /// <summary>
     /// Real money in and out, from <paramref name="start"/> up to (not including) <paramref name="end"/>:
-    /// transactions minus balance corrections, plus transfer fees as spending. Moving money between
+    /// transactions (money that went missing, found by a balance check, included as spending; see
+    /// <see cref="Transaction.CountsInTotals"/>), plus transfer fees as spending. Moving money between
     /// your own accounts isn't spending, so the transfers themselves don't appear.
     /// </summary>
     public IEnumerable<Transaction> FlowsBetween(DateTime start, DateTime end) =>
-        _transactions.Where(t => t.Date >= start && t.Date < end && !Category.IsCorrection(t.Category))
+        _transactions.Where(t => t.Date >= start && t.Date < end && t.CountsInTotals)
             .Concat(_transfers.Where(t => t.Date >= start && t.Date < end && t.Fee > 0).Select(FeeAsSpending));
 
     private static Transaction FeeAsSpending(Transfer t) => new()

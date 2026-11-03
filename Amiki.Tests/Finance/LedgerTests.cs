@@ -24,17 +24,31 @@ public class LedgerTests
     }
 
     [Fact]
-    public void Real_flows_leave_out_corrections_and_moves_but_count_transfer_fees()
+    public void Real_flows_leave_out_moves_but_count_transfer_fees()
     {
-        var correction = Spent(999, category: Category.BalanceFix);
         var moved = new Transfer { Date = Monday.AddDays(1), From = "Cash", To = "GCash", Amount = 500, Fee = 15 };
-        var ledger = new Ledger(Accounts, [Spent(80), correction, Spent(40, day: 7)], [moved]);
+        var ledger = new Ledger(Accounts, [Spent(80), Spent(40, day: 7)], [moved]);
 
         var flows = ledger.FlowsBetween(Monday, Monday.AddDays(7)).ToList();
 
         Assert.Equal([80m, 15m], flows.Select(f => f.Amount));
         var fee = flows.Single(f => f.Category == Category.Fees);
         Assert.Equal(("Cash", TxKind.Expense), (fee.Account, fee.Kind));
+    }
+
+    [Fact]
+    public void Money_a_balance_check_found_missing_counts_as_spending()
+    {
+        var wentMissing = Spent(300, category: Category.BalanceFix);
+        var foundExtra = Received(15000); // e.g. the first check on an account, setting its real amount
+        foundExtra.Category = Category.BalanceFix;
+        var ledger = new Ledger(Accounts, [Spent(80), wentMissing, foundExtra], []);
+
+        var flows = ledger.FlowsBetween(Monday, Monday.AddDays(7)).ToList();
+
+        Assert.Equal([80m, 300m], flows.Select(f => f.Amount));
+        Assert.DoesNotContain(flows, f => f.Kind == TxKind.Income);
+        Assert.Equal(100 - 80 - 300 + 15000, ledger.Balance("Cash")); // balances still include every correction
     }
 
     [Fact]
