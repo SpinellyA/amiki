@@ -47,6 +47,15 @@ public class NudgeTests
     }
 
     [Fact]
+    public void Her_daily_note_knows_whats_safe_to_spend_today()
+    {
+        var october = new MoneyPeriod(PeriodLength.Month, new DateTime(2026, 10, 1));
+        var input = Input(budgets: [new BudgetPace(3100, 1500, october, Wednesday)]); // ₱100 a day, ₱2,100 by the 21st
+
+        Assert.Contains("Safe to spend today and stay on this month's budget pace: ₱600 (₱1,600 of ₱3,100 left).", BriefingService.Facts(input, []));
+    }
+
+    [Fact]
     public void Things_wanted_for_a_while_get_a_still_want_it_question()
     {
         var nudge = NudgeRules.From(Input(wants: [("Thus", Wednesday.AddDays(-15)), ("Motor", Wednesday.AddDays(-30))])).Single();

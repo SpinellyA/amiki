@@ -24,6 +24,14 @@
                 <span class="budget-marker" style="left: @Percent(pace.TimeGone)" title="Where spending evenly would be by today"></span>
             }
         </div>
+        @if (pace.DaysGone > 0 && !pace.IsFinished)
+        {
+            <div class="budget-today">
+                <span class="stat-label">Safe to spend today</span>
+                <span class="budget-today-value">@Money.Format(pace.SafeToday)</span>
+                <span class="muted budget-today-note">@SafeLine(pace)</span>
+            </div>
+        }
         <div class="budget-pace">
             <MudIcon Icon="@StatusIcon(pace.Status)" Size="Size.Small" />
             <span>@PaceLine(pace)</span>
@@ -69,6 +77,12 @@ else
             ? $"Stayed within it, with {Money.Format(pace.Left)} to spare."
             : $"On track. {Money.Format(pace.PerDayLeft)} a day for the {Days(pace.DaysLeft)} left keeps you within it.",
     };
+
+    private string SafeLine(BudgetPace pace) =>
+        pace.SafeToday > 0 ? "and still be on pace tonight"
+        : pace.DaysUntilSafe == 1 ? "You're ahead of the pace; it catches up tomorrow."
+        : pace.DaysUntilSafe > 1 ? $"You're ahead of the pace; it catches up in {Days(pace.DaysUntilSafe)}."
+        : $"You're ahead of the pace for the rest of {Period.Name}.";
 
     private static string StatusIcon(BudgetStatus status) => status switch
     {

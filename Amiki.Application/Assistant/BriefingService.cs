@@ -92,6 +92,8 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
         {
             var weekStart = WeekRange.Of(d.Today).Start;
             s.AppendLine($"- Spent so far this week: ₱{d.SpendingByDay.Where(x => x.Day >= weekStart).Sum(x => x.Amount):#,0}.");
+            foreach (var pace in d.Budgets.Where(p => p.Status != BudgetStatus.Over))
+                s.AppendLine($"- Safe to spend today and stay on {(pace.Period.Length == PeriodLength.Week ? "this week's" : "this month's")} budget pace: ₱{pace.SafeToday:#,0} (₱{pace.Left:#,0} of ₱{pace.Limit:#,0} left).");
         }
         foreach (var nudge in nudges) s.AppendLine($"- {nudge.Text}");
         if (nudges.Count == 0) s.AppendLine("- Nothing needs attention.");

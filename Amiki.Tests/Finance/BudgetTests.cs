@@ -90,6 +90,36 @@ public class BudgetTests
         Assert.Equal(0, pace.PerDayLeft);
     }
 
+    // ---------- Safe to spend today ----------
+
+    // November: 30 days, a ₱3,000 budget is ₱100 a day, so the even pace is ₱1,000 by the end of Nov 10.
+    private static BudgetPace OnTheTenth(decimal spent) => new(3000, spent, November, new DateTime(2026, 11, 10));
+
+    [Fact]
+    public void Whatever_you_didnt_spend_so_far_is_safe_to_spend_today()
+    {
+        Assert.Equal(300, OnTheTenth(700).SafeToday); // ₱300 under the pace
+        Assert.Equal(1000, OnTheTenth(0).SafeToday);  // a quiet start carries over
+    }
+
+    [Fact]
+    public void Ahead_of_the_pace_nothing_is_safe_until_it_catches_up()
+    {
+        Assert.Equal((0m, 1), (OnTheTenth(1000).SafeToday, OnTheTenth(1000).DaysUntilSafe)); // exactly on it: tomorrow
+        Assert.Equal((0m, 6), (OnTheTenth(1500).SafeToday, OnTheTenth(1500).DaysUntilSafe)); // the pace passes ₱1,500 on the 16th
+        Assert.Equal(0, OnTheTenth(3000).DaysUntilSafe); // not again this month
+    }
+
+    [Fact]
+    public void Safe_today_never_goes_past_whats_left_and_only_counts_while_the_period_runs()
+    {
+        var lastDay = new BudgetPace(3000, 2900, November, new DateTime(2026, 11, 30));
+        Assert.Equal(100, lastDay.SafeToday);
+
+        Assert.Equal(0, new BudgetPace(3000, 0, December, new DateTime(2026, 11, 20)).SafeToday); // not started
+        Assert.Equal(0, new BudgetPace(3000, 0, November, new DateTime(2026, 12, 2)).SafeToday);  // over
+    }
+
     [Fact]
     public void A_future_period_is_upcoming_and_a_finished_one_just_within_or_over()
     {

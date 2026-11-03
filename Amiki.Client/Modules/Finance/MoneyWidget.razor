@@ -22,6 +22,10 @@
         <div class="@($"budget-line budget-{pace.Status.ToString().ToLowerInvariant()}")">
             <span>@(pace.Period.Length == PeriodLength.Week ? "This week" : "This month"):</span>
             <span>@(pace.Left >= 0 ? $"{Money.Format(pace.Left)} of {Money.Format(pace.Limit)} budget left" : $"{Money.Format(-pace.Left)} over budget")</span>
+            @if (pace.Status != BudgetStatus.Over)
+            {
+                <span>· @Money.Format(pace.SafeToday) safe today</span>
+            }
             @if (pace.Status == BudgetStatus.AtRisk)
             {
                 <span class="budget-line-flag">on pace to go over</span>

@@ -2443,6 +2443,9 @@ html, body {
 .budget-bar { position: relative; height: 8px; border-radius: 4px; background: var(--mud-palette-lines-default); }
 .budget-used { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--budget); }
 .budget-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--mud-palette-text-primary); opacity: 0.7; }
+.budget-today { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.15rem 0.5rem; padding: 0.45rem 0.6rem; border-radius: 6px; background: color-mix(in srgb, var(--budget) 10%, transparent); }
+.budget-today-value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--budget); }
+.budget-today-note { font-size: 0.8rem; }
 .budget-pace { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.85rem; }
 .budget-pace .mud-icon-root { color: var(--budget); flex-shrink: 0; margin-top: 1px; }
 .budget-none { margin: -0.5rem 0 -0.25rem; }

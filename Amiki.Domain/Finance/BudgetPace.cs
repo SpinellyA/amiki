@@ -30,6 +30,30 @@ public readonly record struct BudgetPace(decimal Limit, decimal Spent, MoneyPeri
     /// <summary>What you can spend a day from now on and still stay within it.</summary>
     public decimal PerDayLeft => DaysLeft == 0 ? 0 : Math.Max(0, Math.Floor(Left / DaysLeft));
 
+    /// <summary>
+    /// How much more you can spend today and still be at or under the even pace by tonight (the
+    /// marker on the budget bar). Days you spent less carry over; when you're ahead of the pace,
+    /// it's zero until the pace catches up. Never more than what's left of the budget.
+    /// </summary>
+    public decimal SafeToday =>
+        DaysGone == 0 || IsFinished ? 0 : Math.Max(0, Math.Floor(Math.Min(ExpectedByNow - Spent, Left)));
+
+    /// <summary>
+    /// When today's safe amount is zero: in how many days the even pace passes what you've spent
+    /// (if you spend nothing more), so there's something safe to spend again. Zero when it's already
+    /// safe today, or when that won't happen before the period ends.
+    /// </summary>
+    public int DaysUntilSafe
+    {
+        get
+        {
+            if (SafeToday > 0 || Limit <= 0 || DaysGone == 0 || IsFinished) return 0;
+            var firstSafeDay = (int)Math.Floor(Spent * DaysTotal / Limit) + 1; // 1 = the period's first day
+            // Less than a peso under the pace rounds down to nothing safe today, so it's tomorrow at the soonest.
+            return firstSafeDay <= DaysTotal ? Math.Max(1, firstSafeDay - DaysGone) : 0;
+        }
+    }
+
     /// <summary>How much of the budget is used, 0 to 1 (more than 1 when over).</summary>
     public double Used => Limit <= 0 ? 0 : (double)(Spent / Limit);
 
