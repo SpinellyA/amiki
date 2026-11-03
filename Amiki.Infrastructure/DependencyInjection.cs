@@ -18,6 +18,7 @@ public static class DependencyInjection
     /// <summary>Postgres, Gemini, data protection and the clock, behind the Application's ports.</summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config, string connectionString)
     {
+        connectionString = DatabaseConnection.Tuned(connectionString);
         services.AddSingleton<TimeProvider>(AmikiTimeProvider.For(config["Amiki:TimeZone"]));
 
         services.AddDbContext<AmikiDb>(options => options.UseNpgsql(connectionString));
