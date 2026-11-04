@@ -117,13 +117,9 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
             ? await db.Ideas.AsNoTracking().Where(i => i.Status == IdeaStatus.Parked && i.ArchivedAt == null).Select(i => i.CreatedAt).ToListAsync(ct)
             : [];
 
-        List<(string, DateTime?)> accounts = [];
         List<(DateTime, string, decimal)> spending = [];
         if (s.SeeMoney)
         {
-            var used = await db.Transactions.AsNoTracking().Select(t => t.Account).Distinct().ToListAsync(ct);
-            var checks = await db.BalanceChecks.AsNoTracking().GroupBy(c => c.Account).Select(g => new { Account = g.Key, Last = g.Max(c => c.CheckedAt) }).ToListAsync(ct);
-            accounts = used.Order().Select(a => (a, checks.FirstOrDefault(c => c.Account == a)?.Last)).ToList();
             spending = (await db.Transactions.AsNoTracking()
                     .Where(t => t.Kind == TxKind.Expense && t.Date >= since) // money found missing by a balance check counts too
                     .Select(t => new { t.Date, t.Category, t.Amount }).ToListAsync(ct))
@@ -142,7 +138,7 @@ public sealed class BriefingService(IAmikiDb db, ILanguageModel model, ICurrentU
 
         var budgetPaces = s.SeeMoney ? await budgets.NowAsync(today, ct) : [];
 
-        return new NudgeInput(today, tasks, ideas, accounts, spending, inbox, reviewed, cooledOff, budgetPaces,
+        return new NudgeInput(today, tasks, ideas, spending, inbox, reviewed, cooledOff, budgetPaces,
             s.SeeTasks, s.SeeIdeas, s.SeeMoney, s.SeeInbox, s.SeeWeeklyNotes);
     }
 }

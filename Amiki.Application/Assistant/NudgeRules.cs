@@ -11,7 +11,6 @@ namespace Amiki.Application.Assistant;
 /// </summary>
 public static class NudgeRules
 {
-    public static readonly TimeSpan CheckBalancesEvery = TimeSpan.FromDays(14);
     public static readonly TimeSpan IdeasGoStale = TimeSpan.FromDays(30);
     public const int StaleIdeasWorthMentioning = 3;
     public const int FullInbox = 5;
@@ -43,12 +42,6 @@ public static class NudgeRules
 
         if (d.SeeMoney)
         {
-            var notChecked = d.AccountsLastChecked
-                .Where(a => a.LastChecked is not { } at || today - at.Date >= CheckBalancesEvery)
-                .Select(a => a.Account).Order().ToList();
-            if (notChecked.Count > 0)
-                nudges.Add(new("balance", $"{JoinNames(notChecked)} {(notChecked.Count == 1 ? "hasn't" : "haven't")} been checked against the real balance in 2+ weeks.", "money"));
-
             nudges.AddRange(d.Budgets.Select(Budget).OfType<Nudge>());
             nudges.AddRange(Spending(d.SpendingByDay, today));
 
@@ -117,9 +110,6 @@ public static class NudgeRules
     }
 
     private static string Count(int n, string word) => $"{n} {word}{(n == 1 ? "" : "s")}";
-
-    private static string JoinNames(IReadOnlyList<string> names) =>
-        names.Count == 1 ? names[0] : $"{string.Join(", ", names.Take(names.Count - 1))} and {names[^1]}";
 
     private static string Peso(decimal amount) => "₱" + Math.Round(amount).ToString("#,0", CultureInfo.InvariantCulture);
 }

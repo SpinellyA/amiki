@@ -13,14 +13,13 @@ public class NudgeTests
         DateTime? today = null,
         IReadOnlyList<(string, DateTime?)>? tasks = null,
         IReadOnlyList<DateTime>? ideas = null,
-        IReadOnlyList<(string, DateTime?)>? accounts = null,
         IReadOnlyList<(DateTime, string, decimal)>? spending = null,
         int inbox = 0,
         IReadOnlyList<DateTime>? reviewed = null,
         IReadOnlyList<(string, DateTime)>? wants = null,
         IReadOnlyList<BudgetPace>? budgets = null,
         bool seeAll = true) =>
-        new(today ?? Wednesday, tasks ?? [], ideas ?? [], accounts ?? [], spending ?? [], inbox, reviewed ?? [], wants ?? [], budgets ?? [],
+        new(today ?? Wednesday, tasks ?? [], ideas ?? [], spending ?? [], inbox, reviewed ?? [], wants ?? [], budgets ?? [],
             seeAll, seeAll, seeAll, seeAll, seeAll);
 
     private static string[] Kinds(NudgeInput input) => NudgeRules.From(input).Select(n => n.Kind).ToArray();
@@ -90,11 +89,11 @@ public class NudgeTests
     }
 
     [Fact]
-    public void Accounts_not_checked_in_two_weeks_are_named_together()
+    public void She_never_asks_you_to_check_your_balances()
     {
-        var nudges = NudgeRules.From(Input(accounts: [("Landbank", Wednesday.AddDays(-16)), ("Cash", null), ("GCash", Wednesday.AddDays(-2))]));
-
-        Assert.Equal("Cash and Landbank haven't been checked against the real balance in 2+ weeks.", nudges.Single().Text);
+        // Checking balances is yours to do when you like, so there's no rule for it at all:
+        // a quiet day stays quiet however long ago the last check was.
+        Assert.DoesNotContain(NudgeRules.From(Input()), n => n.Text.Contains("checked", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -132,7 +131,7 @@ public class NudgeTests
     [Fact]
     public void Areas_she_cant_see_never_produce_nudges()
     {
-        var input = Input(tasks: [("Lab 3", Wednesday.AddDays(-3))], inbox: 9, accounts: [("Cash", null)], seeAll: false);
+        var input = Input(tasks: [("Lab 3", Wednesday.AddDays(-3))], inbox: 9, seeAll: false);
 
         Assert.Empty(NudgeRules.From(input));
         Assert.DoesNotContain("Open tasks", BriefingService.Facts(input, []));

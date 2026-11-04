@@ -1169,7 +1169,6 @@ button.sync-status {
 }
 
 .account-check .mud-icon-root { font-size: 0.9rem; }
-.account-check.stale { color: var(--mud-palette-text-secondary); }
 
 /* Categories */
 .category-kind { margin-bottom: 0.75rem; }

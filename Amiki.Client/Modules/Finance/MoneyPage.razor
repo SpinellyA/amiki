@@ -29,7 +29,7 @@
                 <MudPaper Outlined="true" Class="account-card" role="button" aria-label="@($"{account.Name} options")">
                     <span class="stat-label">@account.Name</span>
                     <span class="account-value @(Store.Balance(account.Name) < 0 ? "neg" : "")">@Signed(Store.Balance(account.Name))</span>
-                    <span class="account-check @(last is null || DateTime.Now - last.CheckedAt > FinanceAudit.StaleAfter ? "stale" : "")">
+                    <span class="account-check">
                         @if (last is null)
                         {
                             @:not checked yet
