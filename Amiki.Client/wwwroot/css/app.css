@@ -2453,3 +2453,220 @@ html, body {
 .budget-line.budget-over { --budget: var(--mud-palette-error); }
 .budget-line span:nth-child(2) { color: var(--budget); }
 .budget-line-flag { color: var(--mud-palette-warning); }
+
+/* ---------- Clock: the 24-hour day dial ---------- */
+
+.tone-0 { --tone: var(--mud-palette-primary); }
+.tone-1 { --tone: var(--mud-palette-info); }
+.tone-2 { --tone: var(--mud-palette-success); }
+.tone-3 { --tone: var(--mud-palette-warning); }
+.tone-4 { --tone: var(--mud-palette-error); }
+.tone-5 { --tone: var(--mud-palette-secondary); }
+.tone-6 { --tone: var(--mud-palette-tertiary); }
+.tone-7 { --tone: color-mix(in srgb, var(--mud-palette-primary) 45%, var(--mud-palette-warning)); }
+
+.clock-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.clock-face-card {
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: var(--mud-palette-surface);
+}
+
+.clock-side { display: flex; flex-direction: column; gap: 1.25rem; }
+.clock-side .widget { height: auto; }
+
+.clock-daynav { display: inline-flex; align-items: center; }
+
+.clock-dial {
+    position: relative;
+    width: min(380px, 100%);
+    aspect-ratio: 1;
+}
+
+.clock-dial svg { width: 100%; height: 100%; overflow: visible; }
+
+.clock-track {
+    fill: none;
+    stroke: var(--mud-palette-lines-default);
+    stroke-width: 18;
+}
+
+.clock-night {
+    fill: none;
+    stroke: color-mix(in srgb, var(--mud-palette-text-primary) 9%, transparent);
+    stroke-width: 18;
+}
+
+.clock-tick { stroke: var(--mud-palette-text-disabled); stroke-width: 1; }
+.clock-tick.major { stroke: var(--mud-palette-text-secondary); stroke-width: 2; }
+
+.clock-hour {
+    fill: var(--mud-palette-text-secondary);
+    font-size: 9px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    letter-spacing: 0.04em;
+}
+
+.clock-block {
+    fill: none;
+    stroke: var(--tone);
+    stroke-width: 18;
+    stroke-linecap: round;
+    cursor: pointer;
+    transition: stroke-width 120ms ease, filter 120ms ease;
+}
+
+.clock-block:hover, .clock-block.lit { stroke-width: 24; filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--tone) 45%, transparent)); }
+
+.clock-hand { stroke: var(--mud-palette-text-primary); stroke-width: 2; stroke-linecap: round; }
+.clock-pivot { fill: var(--mud-palette-text-primary); }
+
+.clock-center {
+    position: absolute;
+    inset: 30%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+.clock-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mud-palette-text-secondary);
+}
+
+.clock-big {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clock-big.clock-label { font-size: 1.1rem; color: var(--tone); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.clock-sub { font-size: 0.78rem; color: var(--mud-palette-text-secondary); }
+
+.clock-dial.compact { width: 168px; flex-shrink: 0; }
+.clock-dial.compact .clock-big { font-size: 1.1rem; }
+.clock-dial.compact .clock-big.clock-label { font-size: 0.85rem; }
+.clock-dial.compact .clock-eyebrow { font-size: 0.6rem; }
+.clock-dial.compact .clock-sub { font-size: 0.68rem; }
+.clock-dial.compact .clock-center { inset: 24%; }
+
+.block-swatch {
+    width: 4px;
+    align-self: stretch;
+    border-radius: 2px;
+    background: var(--tone);
+    flex-shrink: 0;
+}
+
+.block-list { display: flex; flex-direction: column; padding: 0.5rem 0.5rem 0; }
+
+.block-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
+}
+
+.block-row:hover { background: var(--mud-palette-action-default-hover); }
+.block-row.now { background: color-mix(in srgb, var(--tone) 10%, transparent); }
+
+.block-when {
+    display: flex;
+    flex-direction: column;
+    min-width: 4.6rem;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+}
+
+.block-what {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.block-what:focus-visible { outline: 2px solid var(--mud-palette-primary); outline-offset: 2px; border-radius: 4px; }
+
+.block-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.block-meta { font-size: 0.78rem; color: var(--mud-palette-text-secondary); }
+.block-meta b { color: var(--tone); }
+.block-row.done .block-label { text-decoration: line-through; color: var(--mud-palette-text-secondary); }
+
+.clock-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.clock-lengths { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: -0.5rem; }
+
+.task-hours { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem 1rem 0.5rem; }
+
+.task-hours-row {
+    display: grid;
+    grid-template-columns: 4px minmax(0, 10rem) 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.task-hours-row .block-swatch { height: 1.1rem; }
+.task-hours-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-hours-bar { height: 6px; border-radius: 3px; background: var(--mud-palette-lines-default); overflow: hidden; }
+.task-hours-bar span { display: block; height: 100%; border-radius: 3px; background: var(--tone); }
+.task-hours-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.clock-widget { display: flex; align-items: center; gap: 1.25rem; padding: 0.75rem 1rem 0.5rem; }
+.clock-widget-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.clock-widget-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
+.clock-widget-row .block-swatch { height: 1.1rem; }
+.clock-widget-time { min-width: 4.4rem; font-variant-numeric: tabular-nums; color: var(--mud-palette-text-secondary); }
+.clock-widget-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 899px) {
+    .clock-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 599px) {
+    .clock-face-card { padding: 1rem; }
+    .clock-widget { flex-direction: column; align-items: stretch; }
+    .clock-widget .clock-dial.compact { align-self: center; }
+    .task-hours-row { grid-template-columns: 4px minmax(0, 7rem) 1fr auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .clock-block { transition: none; }
+}

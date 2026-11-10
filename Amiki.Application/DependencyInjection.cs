@@ -3,11 +3,13 @@ using Amiki.Application.Assistant.Tools;
 using Amiki.Application.Assistant.Tools.Lookups;
 using Amiki.Application.Assistant.Tools.Proposals;
 using Amiki.Application.Auditing;
+using Amiki.Application.Clock;
 using Amiki.Application.Diary;
 using Amiki.Application.Entities;
 using Amiki.Application.Finance;
 using Amiki.Application.People;
 using Amiki.Domain.Assistant;
+using Amiki.Domain.Clock;
 using Amiki.Domain.Diary;
 using Amiki.Domain.Finance;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<EntityRules<Plan>, PlanRules>();
         services.AddScoped<EntityRules<DiaryEntry>, DiaryRules>();
         services.AddScoped<EntityRules<AssistantSettings>, AssistantSettingsRules>();
+        services.AddScoped<EntityRules<TimeBlock>, TimeBlockRules>();
 
         services.AddScoped<PeopleService>();
         services.AddScoped<MyAccountService>();
@@ -58,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<ILookupTool, WeeklyNotesTool>();
         services.AddScoped<ILookupTool, ListWishlistTool>();
         services.AddScoped<ILookupTool, BudgetStatusTool>();
+        services.AddScoped<ILookupTool, DayScheduleTool>();
 
         // What she can suggest. Add one: write an IProposalTool and list it here.
         services.AddScoped<AssistantProposals>();

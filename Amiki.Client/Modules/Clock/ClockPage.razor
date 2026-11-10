@@ -1,0 +1,77 @@
+@page "/clock"
+@implements IDisposable
+
+<PageTitle>Clock · Amiki</PageTitle>
+
+<div class="page-head">
+    <div>
+        <MudText Typo="Typo.h4">Clock</MudText>
+        <MudText Typo="Typo.body2" Class="muted">@DayName · @ClockFormat.Length(Plan.PlannedMinutes) planned</MudText>
+    </div>
+    <div class="head-actions">
+        <div class="clock-daynav">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" aria-label="Day before" OnClick="() => Move(-1)" />
+            <MudButton Variant="Variant.Text" Disabled="IsToday" OnClick="() => _day = DateTime.Today">Today</MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" aria-label="Day after" OnClick="() => Move(1)" />
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="() => Actions.PlanAsync(_day)">Plan time</MudButton>
+    </div>
+</div>
+
+<div class="clock-layout">
+    <MudPaper Outlined="true" Class="clock-face-card">
+        <ClockDial Plan="Plan" NowMinute="NowMinute" Highlight="_hovered" OnBlockClick="Actions.EditAsync">
+            <ClockCenter Plan="Plan" Now="Now" />
+        </ClockDial>
+    </MudPaper>
+
+    <div class="clock-side">
+        <MudPaper Outlined="true" Class="widget">
+            <div class="widget-head">
+                <MudIcon Icon="@Icons.Material.Outlined.ViewAgenda" Size="Size.Small" />
+                <span>@(IsToday ? "Today" : _day.ToString("dddd"))</span>
+            </div>
+            @if (Plan.Blocks.Count == 0)
+            {
+                <div class="empty clock-empty">
+                    <MudText Typo="Typo.body2" Class="muted">Nothing planned for @(IsToday ? "today" : DayName).</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="() => Actions.PlanAsync(_day)">Plan time for a task</MudButton>
+                </div>
+            }
+            else
+            {
+                <div class="block-list">
+                    @foreach (var block in Plan.Blocks)
+                    {
+                        <TimeBlockRow @key="block.Id" Block="block" Task="TaskFor(block)" IsNow="Now is { } now && block.Contains(now)"
+                                      OnEdit="Actions.EditAsync" OnDelete="Actions.DeleteWithUndo" OnToggleTask="TaskActions.Toggle"
+                                      OnHover="id => _hovered = id" />
+                    }
+                </div>
+            }
+        </MudPaper>
+
+        @if (Plan.ByTask.Count > 0)
+        {
+            <MudPaper Outlined="true" Class="widget">
+                <div class="widget-head">
+                    <MudIcon Icon="@Icons.Material.Outlined.DonutLarge" Size="Size.Small" />
+                    <span>Time per task</span>
+                </div>
+                <div class="task-hours">
+                    @foreach (var (taskId, label, minutes) in Plan.ByTask)
+                    {
+                        <div class="task-hours-row @BlockTone.For(taskId, label)">
+                            <span class="block-swatch"></span>
+                            <span class="task-hours-label">@label</span>
+                            <span class="task-hours-bar"><span style="width: @Share(minutes)%"></span></span>
+                            <span class="task-hours-value">@ClockFormat.Length(minutes)</span>
+                        </div>
+                    }
+                </div>
+            </MudPaper>
+        }
+    </div>
+</div>

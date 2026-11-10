@@ -1,0 +1,66 @@
+@* Dashboard: today's dial, with what's on now and what's next. *@
+@implements IDisposable
+@inject ClockStore Store
+@inject ClockActions Actions
+@inject MinuteTicker Ticker
+
+<MudPaper Outlined="true" Class="widget">
+    <div class="widget-head">
+        <MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" />
+        <span>Clock</span>
+        <MudSpacer />
+        <MudLink Href="clock" Typo="Typo.body2">Plan your day →</MudLink>
+    </div>
+
+    <div class="clock-widget">
+        <ClockDial Plan="Plan" NowMinute="ClockFormat.MinuteOf(DateTime.Now)" Compact="true" OnBlockClick="Actions.EditAsync">
+            <ClockCenter Plan="Plan" Now="DateTime.Now" />
+        </ClockDial>
+        <div class="clock-widget-list">
+            @if (Plan.Blocks.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="muted">No time planned today.</MudText>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="() => Actions.PlanAsync(DateTime.Today)">Plan time</MudButton>
+            }
+            else
+            {
+                @foreach (var block in Upcoming)
+                {
+                    <div class="clock-widget-row @BlockTone.For(block)">
+                        <span class="block-swatch"></span>
+                        <span class="clock-widget-time">@ClockFormat.Time(block.StartMinute)</span>
+                        <span class="clock-widget-label">@block.Label</span>
+                    </div>
+                }
+                @if (Upcoming.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="muted">Done for today: @ClockFormat.Length(Plan.PlannedMinutes) planned.</MudText>
+                }
+            }
+        </div>
+    </div>
+</MudPaper>
+
+@code {
+    private const int Shown = 4;
+
+    private DayPlan Plan => Store.PlanFor(DateTime.Today);
+
+    /// <summary>What's on now and the next few after it.</summary>
+    private List<TimeBlock> Upcoming => [.. Plan.Blocks.Where(b => b.Ends > DateTime.Now).Take(Shown)];
+
+    protected override void OnInitialized()
+    {
+        Store.Changed += Refresh;
+        Ticker.Ticked += Refresh;
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= Refresh;
+        Ticker.Ticked -= Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+}

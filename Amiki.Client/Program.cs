@@ -1,3 +1,4 @@
+using Amiki.Modules.Clock;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
@@ -43,6 +44,7 @@ builder.Services.AddSingleton<DevicePreferences>();
 builder.Services.AddAssistantModule();
 builder.Services.AddInboxModule();
 builder.Services.AddTasksModule();
+builder.Services.AddClockModule();
 builder.Services.AddIdeasModule();
 builder.Services.AddFinanceModule();
 builder.Services.AddWishlistModule();

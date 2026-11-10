@@ -1,0 +1,68 @@
+@*
+    The 24-hour dial: midnight at the top, noon at the bottom. Night hours are shaded on the
+    ring, each block is an arc in its task's colour, and the hand points at now (today only).
+*@
+@using static DialGeometry
+
+<div class="clock-dial @(Compact ? "compact" : "")" role="img" aria-label="@Description">
+    <svg viewBox="0 0 @N(ViewBox) @N(ViewBox)" aria-hidden="true">
+        <circle class="clock-track" cx="@N(Center)" cy="@N(Center)" r="@N(Ring)" />
+        <path class="clock-night" d="@Arc(NightStarts, TimeBlock.MinutesInDay)" />
+        <path class="clock-night" d="@Arc(0, NightEnds)" />
+
+        @for (var hour = 0; hour < 24; hour++)
+        {
+            var (x1, y1) = Point(hour * 60, Ring - 15);
+            var (x2, y2) = Point(hour * 60, Ring - (hour % 6 == 0 ? 22 : 18));
+            <line class="clock-tick @(hour % 6 == 0 ? "major" : "")" x1="@N(x1)" y1="@N(y1)" x2="@N(x2)" y2="@N(y2)" />
+        }
+        @if (!Compact)
+        {
+            @foreach (var (hour, text) in HourLabels)
+            {
+                var (x, y) = Point(hour * 60, Ring - 33);
+                @* Razor reserves <text>, so the SVG label is written out as markup (fixed text only). *@
+                @((MarkupString)$"<text class=\"clock-hour\" x=\"{N(x)}\" y=\"{N(y)}\">{text}</text>")
+            }
+        }
+
+        @foreach (var block in Plan.Blocks)
+        {
+            <path class="clock-block @BlockTone.For(block) @(block.Id == Highlight ? "lit" : "")" d="@Arc(block.StartMinute + Gap, block.EndMinute - Gap)"
+                  @onclick="() => OnBlockClick.InvokeAsync(block)">
+                <title>@block.Label · @ClockFormat.Range(block)</title>
+            </path>
+        }
+
+        @if (NowMinute is { } now)
+        {
+            // A short hand across the ring, so it never runs over the words in the middle.
+            var (ix, iy) = Point(now, Ring - 24);
+            var (ox, oy) = Point(now, Ring + 14);
+            <line class="clock-hand" x1="@N(ix)" y1="@N(iy)" x2="@N(ox)" y2="@N(oy)" />
+            <circle class="clock-pivot" cx="@N(ox)" cy="@N(oy)" r="3.5" />
+        }
+    </svg>
+    <div class="clock-center">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    private const int NightStarts = 22 * 60, NightEnds = 6 * 60;
+    // A small gap at each end, so blocks that touch still read as two.
+    private const double Gap = 2;
+    private static readonly (int Hour, string Text)[] HourLabels = [(0, "12a"), (6, "6a"), (12, "12p"), (18, "6p")];
+
+    [Parameter, EditorRequired] public DayPlan Plan { get; set; } = default!;
+    /// <summary>Where the hand points (minutes after midnight); null hides it (another day).</summary>
+    [Parameter] public int? NowMinute { get; set; }
+    [Parameter] public Guid? Highlight { get; set; }
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public EventCallback<TimeBlock> OnBlockClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Description => Plan.Blocks.Count == 0
+        ? "Nothing planned"
+        : string.Join(", ", Plan.Blocks.Select(b => $"{b.Label} {ClockFormat.Range(b)}"));
+}

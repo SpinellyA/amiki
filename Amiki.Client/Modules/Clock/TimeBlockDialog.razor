@@ -1,0 +1,45 @@
+@* Block out time on one day: for a task (or something in your own words), from when to when. *@
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudSelect T="Guid?" Value="Block.TaskId" ValueChanged="PickTask" Label="For" Variant="Variant.Outlined" ToStringFunc="TaskName">
+                @foreach (var task in Tasks)
+                {
+                    <MudSelectItem T="Guid?" Value="task.Id">@task.Title</MudSelectItem>
+                }
+                <MudSelectItem T="Guid?" Value="null">Something else…</MudSelectItem>
+            </MudSelect>
+            @if (Block.TaskId is null)
+            {
+                <MudTextField @bind-Value="Block.Label" Label="What's the time for?" Variant="Variant.Outlined"
+                              Immediate="true" MaxLength="TimeBlock.MaxLabel" AutoFocus="Tasks.Count == 0"
+                              Placeholder="e.g. Gym, Read, Deep work" />
+            }
+
+            <MudStack Row="true" Spacing="3">
+                <MudTimePicker Time="Start" TimeChanged="SetStart" Label="From" Variant="Variant.Outlined" AmPm="true" Editable="true" MinuteSelectionStep="TimeBlock.Step" />
+                <MudTimePicker Time="End" TimeChanged="SetEnd" Label="To" Variant="Variant.Outlined" AmPm="true" Editable="true" MinuteSelectionStep="TimeBlock.Step"
+                               HelperText="@(Block.Minutes > 0 ? ClockFormat.Length(Block.Minutes) : null)" />
+            </MudStack>
+
+            <div class="clock-lengths">
+                @foreach (var minutes in Lengths)
+                {
+                    <MudChip T="int" Size="Size.Small" Variant="@(Block.Minutes == minutes ? Variant.Filled : Variant.Outlined)"
+                             Color="Color.Primary" OnClick="() => SetLength(minutes)">@ClockFormat.Length(minutes)</MudChip>
+                }
+            </div>
+
+            @if (Problem is { } problem && Touched)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@problem</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Problem is not null"
+                   OnClick="() => Dialog.Close(DialogResult.Ok(Block))">Save</MudButton>
+    </DialogActions>
+</MudDialog>

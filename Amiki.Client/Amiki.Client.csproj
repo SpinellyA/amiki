@@ -29,6 +29,7 @@
   <ItemGroup>
     <Using Include="Amiki.Domain" />
     <Using Include="Amiki.Domain.Assistant" />
+    <Using Include="Amiki.Domain.Clock" />
     <Using Include="Amiki.Domain.Diary" />
     <Using Include="Amiki.Domain.Finance" />
     <Using Include="Amiki.Domain.Ideas" />

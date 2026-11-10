@@ -1,5 +1,6 @@
 using Amiki.Domain;
 using Amiki.Domain.Assistant;
+using Amiki.Domain.Clock;
 using Amiki.Domain.Diary;
 using Amiki.Domain.Finance;
 using Amiki.Domain.Ideas;
@@ -40,6 +41,7 @@ public interface IAmikiDb
     DbSet<WishItem> Wishlist { get; }
     DbSet<WishlistFund> WishlistFunds { get; }
     DbSet<Budget> Budgets { get; }
+    DbSet<TimeBlock> TimeBlocks { get; }
 
     DbSet<T> Set<T>() where T : class;
 

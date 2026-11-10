@@ -1,0 +1,36 @@
+@* One block in the agenda: when, what for, how long; tick the task off from here. *@
+
+<div class="block-row @BlockTone.For(Block) @(IsNow ? "now" : "") @(Task?.IsDone == true ? "done" : "")"
+     @onmouseenter="() => OnHover.InvokeAsync(Block.Id)" @onmouseleave="() => OnHover.InvokeAsync(null)">
+    <span class="block-swatch"></span>
+    <div class="block-when">
+        <span>@ClockFormat.Time(Block.StartMinute)</span>
+        <span class="muted">@ClockFormat.Time(Block.EndMinute)</span>
+    </div>
+    <button class="block-what" @onclick="() => OnEdit.InvokeAsync(Block)" title="Change">
+        <span class="block-label">@Block.Label</span>
+        <span class="block-meta">
+            @ClockFormat.Length(Block.Minutes)
+            @if (IsNow) { <b> · now</b> }
+            @if (Block.TaskId is not null && Task is null) { <span> · task removed</span> }
+        </span>
+    </button>
+    @if (Task is not null)
+    {
+        <MudCheckBox T="bool" Value="Task.IsDone" ValueChanged="_ => OnToggleTask.InvokeAsync(Task)" Size="Size.Small"
+                     Color="Color.Success" title="@(Task.IsDone ? "Mark not done" : "Mark the task done")" />
+    }
+    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" aria-label="Remove block"
+                   OnClick="() => OnDelete.InvokeAsync(Block)" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TimeBlock Block { get; set; } = default!;
+    /// <summary>The task the block is for, if it still exists.</summary>
+    [Parameter] public TaskItem? Task { get; set; }
+    [Parameter] public bool IsNow { get; set; }
+    [Parameter] public EventCallback<TimeBlock> OnEdit { get; set; }
+    [Parameter] public EventCallback<TimeBlock> OnDelete { get; set; }
+    [Parameter] public EventCallback<TaskItem> OnToggleTask { get; set; }
+    [Parameter] public EventCallback<Guid?> OnHover { get; set; }
+}

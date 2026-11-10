@@ -1,0 +1,35 @@
+@* The words in the middle of the dial: what's on now and for how long, or when you're next busy. *@
+
+@if (Now is not { } now)
+{
+    <span class="clock-eyebrow">Planned</span>
+    <span class="clock-big">@ClockFormat.Length(Plan.PlannedMinutes)</span>
+    <span class="clock-sub">@Plan.Blocks.Count @(Plan.Blocks.Count == 1 ? "block" : "blocks")</span>
+}
+else if (Plan.At(now) is { } current)
+{
+    <span class="clock-eyebrow">Now</span>
+    <span class="clock-big clock-label @BlockTone.For(current)">@current.Label</span>
+    <span class="clock-sub">@ClockFormat.Length(Left(current, now)) left</span>
+}
+else if (Plan.Next(now) is { } next)
+{
+    <span class="clock-eyebrow">Free</span>
+    <span class="clock-big">@ClockFormat.Length(Until(next, now))</span>
+    <span class="clock-sub">until @next.Label</span>
+}
+else
+{
+    <span class="clock-eyebrow">Free</span>
+    <span class="clock-big">@now.ToString("h:mm tt")</span>
+    <span class="clock-sub">nothing else today</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public DayPlan Plan { get; set; } = default!;
+    /// <summary>The time now, when the plan is for today; null for other days.</summary>
+    [Parameter] public DateTime? Now { get; set; }
+
+    private static int Left(TimeBlock block, DateTime now) => (int)Math.Ceiling((block.Ends - now).TotalMinutes);
+    private static int Until(TimeBlock block, DateTime now) => (int)Math.Ceiling((block.Starts - now).TotalMinutes);
+}

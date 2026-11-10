@@ -4,6 +4,7 @@ using Amiki.Application.People;
 using Amiki.Domain;
 using Amiki.Domain.People;
 using Amiki.Domain.Assistant;
+using Amiki.Domain.Clock;
 using Amiki.Domain.Diary;
 using Amiki.Domain.Finance;
 using Amiki.Domain.Ideas;
@@ -54,6 +55,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
     public DbSet<WishItem> Wishlist => Set<WishItem>();
     public DbSet<WishlistFund> WishlistFunds => Set<WishlistFund>();
     public DbSet<Budget> Budgets => Set<Budget>();
+    public DbSet<TimeBlock> TimeBlocks => Set<TimeBlock>();
 
     private static readonly JsonSerializerOptions Json = AmikiJson.Create();
 
@@ -89,6 +91,7 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
         PerPerson<WishItem>(model);
         PerPerson<WishlistFund>(model);
         PerPerson<Budget>(model);
+        PerPerson<TimeBlock>(model);
 
         model.Entity<InboxItem>().ToTable("inbox_items");
 
@@ -111,6 +114,13 @@ public sealed class AmikiDb(DbContextOptions<AmikiDb> options, ICurrentUser user
                         points => JsonSerializer.Deserialize<List<PricePoint>>(JsonSerializer.Serialize(points, Json), Json)!));
         });
         model.Entity<WishlistFund>().ToTable("wishlist_funds");
+
+        model.Entity<TimeBlock>(block =>
+        {
+            block.ToTable("time_blocks");
+            block.Property(b => b.Label).HasMaxLength(TimeBlock.MaxLabel);
+            block.HasIndex(UserIdColumn, nameof(TimeBlock.Day));
+        });
 
         model.Entity<Budget>(budget =>
         {
